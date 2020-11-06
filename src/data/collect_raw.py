@@ -1,20 +1,27 @@
-import version_reader
+import raw_downloader
 import pandas as pd
 from os.path import exists
 from multiprocessing.pool import ThreadPool
+import numpy as np
 
 bv = pd.read_csv("./data/external/bill_version.csv", sep=";", encoding="latin1", parse_dates=True)
 import time
 start_time = time.time()
 
 
-def copy_local(i):
+def copy_local(i) -> int:
+    """
+    Go to the (i)th index of the bill version csv file and download the file for local work.
+    """
 
-    print(i)
-    file_name =  "./data/raw/"+str(bv['id'][i])+".txt" 
+    try:
+       file_name =  "./data/raw/"+str(bv['id'][i])+".txt" 
+    except Exception:
+        print("Index {i} is longer than the data (len { len(bv) }). ")
+
+
     if exists(file_name):
-        print(f"skip {i}")
-        return None
+        return 0 # Correctly skipped
 
     if i % 10_000 == 0:
         print(" Iteration: {}".format(i))
@@ -22,28 +29,24 @@ def copy_local(i):
 
     url = bv['url'][i]
 
-    br = version_reader.bill_version(url)
-    #print(br.plain_text)
+    try:
+        br = raw_downloader.raw_downloader(url)
 
-    #print(i)
-    text_file = open(file_name, "w")
-    rv = text_file.write(br.plain_text)
-    text_file.close()
+        text_file = open(file_name, "w")
+        rv = text_file.write(br.plain_text)
+        text_file.close()
+    except Exception:
+        print(f"Issue open/closing file from {url}.")
+
+    return 1  # Correctly downloaded
 
 
 tp = ThreadPool(processes=30)
-#versions = ThreadPool(10).imap_unordered(copy_local, range(len(bv['url'])))
-#or i in versions:
-#    copy_local(i)
 
-tp.map(copy_local, range(len(bv['url'])))
+n_dl = tp.map(copy_local, range(len(bv['url'])))
 
-#for i in range(10):
-#for i in range(len(bv['url'])):
-#    copy_local(i)
-
-import time
-time.sleep(10)
+print(f"Number of files downloaded: {np.sum(n_dl)}")
+print(f"Number of files already downloaded: {len(n_dl) - np.sum(n_dl)}")
 
 tp.terminate()
 tp.close()
