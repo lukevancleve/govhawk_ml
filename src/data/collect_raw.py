@@ -1,12 +1,17 @@
 import raw_downloader
 import pandas as pd
 from os.path import exists
+import os
 from multiprocessing.pool import ThreadPool
 import numpy as np
+
+print("here")
 
 bv = pd.read_csv("./data/external/bill_version.csv", sep=";", encoding="latin1", parse_dates=True)
 import time
 start_time = time.time()
+
+os.mkdir('data/raw')
 
 
 def copy_local(i) -> int:

@@ -52,6 +52,20 @@ Project Organization
     └── tox.ini            <- tox file with settings for running tox; see tox.readthedocs.io
 
 
+---------
+
+## Raw Data
+
+The csv files in `data/external/` have the location in S3 of all the raw bill text. The program `collect_raw.py` will download them all to the `data/raw` directory.
+
+` python src/collect_raw.py
+
+
+
+
+
+
+
 --------
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
