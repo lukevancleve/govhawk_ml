@@ -1,17 +1,29 @@
 # -*- coding: utf-8 -*-
-#import click
 import logging
 from pathlib import Path
-#from dotenv import find_dotenv, load_dotenv
+import pandas as pd
+import os
+import sys
+import data_downloader
 
-
-
-def main(input_filepath, output_filepath):
-    """ Runs data processing scripts to turn raw data from (../raw) into
-        cleaned data ready to be analyzed (saved in ../processed).
+def main(vol_path):
+    """ 
+    
     """
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
+
+    if not os.path.isdir(vol_path):
+        raise AssertionError("vol_path not mounted! Create a dir for local work or mount a volume in Docker.")
+
+    # Bill_version.csv is the provided reference for every unique text in the corpus, the actual files
+    # are stored in S3 with the URI as a function of original URL to the document.
+    bv = pd.read_csv("./data/external/bill_version.csv", sep=";", encoding="latin1", parse_dates=True)
+
+    D = data_downloader.data_downloader(vol_path)
+
+    D.download_clean_save_from_df(bv[1:1000])
+
 
 if __name__ == '__main__':
     log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -24,4 +36,12 @@ if __name__ == '__main__':
     # load up the .env entries as environment variables
     #load_dotenv(find_dotenv())
 
-    main("data/raw", "data/processed")
+    try:
+        data_vol = os.environ['DATA_VOL']
+    except Exception:
+        print("No env variable for 'DATA_VOL' specified.")
+        sys.exit(1)
+
+    print("data volume set to:" + data_vol)    
+
+    main(data_vol)

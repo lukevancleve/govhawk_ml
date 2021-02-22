@@ -7,10 +7,9 @@ module_path = os.path.abspath(os.path.join('.'))
 if module_path not in sys.path:
     sys.path.append(module_path)
 
-
 from src.data.read_parallel import read_parallel_local
-raw_folder = "data/raw/"
-externals = 'data/external/'
+
+raw_folder = "data/vol/raw/"
 
 class TestSum(unittest.TestCase):
 
@@ -28,10 +27,10 @@ class TestSum(unittest.TestCase):
         Test opening a known local file and returning a string
         """
 
-        df = pd.read_csv(externals + "bill_version.csv", sep=";", encoding="latin1", parse_dates=True)
+        df = pd.read_csv("data/external/bill_version.csv", sep=";", encoding="latin1", parse_dates=True)
         
         # open many files:
-        docs = read_parallel_local(df.sample(100_000)['id'], raw_folder)
+        read_parallel_local(df.sample(1000)['id'], raw_folder)
 
 if __name__ == '__main__':
     unittest.main()

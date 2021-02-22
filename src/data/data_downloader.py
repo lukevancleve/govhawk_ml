@@ -1,37 +1,87 @@
 import requests
-from typing import List
+from typing import List, Tuple
 import re
 from hashlib import md5
+import pandas as pd
+import os
+from multiprocessing.pool import ThreadPool
+import numpy as np
 #from nltk.tokenize import word_tokenize
 
-class raw_downloader():
+class data_downloader():
     """
     Govhawk's plain text bills are stored on S3 with an address as a hash of the original documents url. This
     class takes the original version and retrieves the plain text, cleans it, and tokenizes it.
     """
 
-    version_url: str
-    plain_text_url: str
-    plain_text: str
-    tokens: List[str]
-    clean_string: str
+    volume: str
+    raw_dir: str
+    clean_dir: str
 
-    def __init__(self, url):
-        self.download_plain(url)
-        #self.clean_text()
+    def __init__(self, volume):
 
-    def download_plain(self, version_url: str):
+        """
+        Make new directories to store text files.
+        """
 
-        self.verison_url = version_url
-        self.plain_text_url = "https://s3.amazonaws.com/statesavvy/" + md5(str.encode(version_url)).hexdigest() + ".plain"
-        r = requests.get(self.plain_text_url)
-        self.plain_text = r.text
+        self.volume = volume
+        self.raw_dir = self.volume + "/raw/"
+        self.clean_dir = self.volume + '/clean/'
+    
+        if not os.path.exists(self.raw_dir):
+            os.mkdir(self.raw_dir)
+        if not os.path.exists(self.clean_dir):
+            os.mkdir(self.clean_dir)
 
-class bill_processing():
+
+    def download_clean_save_from_df(self, df):
+        """
+        Original reference data came from a csv file.
+        """
+
+        bills = zip(df['id'], df['url'])
+
+        tp = ThreadPool(processes=30)
+        n_dl = tp.map(self.download_clean_save_individual, bills)
+        tp.terminate()
+        tp.close()
+
+        print(f"Number of files downloaded:  {np.sum([x[0] for x in n_dl])}")
+        print(f"Number of files cleaned: {np.sum([x[1] for x in n_dl])}")
+
+    def download_clean_save_individual(self, id_url: Tuple[int, str]):
+        """
+        Given an (id, url) list, save the raw and clean copy of a bill.
+        """
+        id, url = id_url
+        raw_text = self.download_plain(url)
+
+        try:
+            raw_file =  self.raw_dir + str(id) + ".txt"
+            with open(raw_file, "w") as f:
+                f.write(raw_text)
+        except Exception:
+            return (0, 0)
+
+        try:
+            clean_text = self.clean_text(raw_text)
+            clean_file = self.clean_dir + str(id) + ".txt"
+            with open(clean_file, "w") as f:
+                f.write(clean_text)
+        except:
+            return (1,0)
+
+        return (1,1)
+
+
+    def download_plain(self, version_url: str) -> str:
+
+        plain_text_url = "https://s3.amazonaws.com/statesavvy/" + md5(str.encode(version_url)).hexdigest() + ".plain"
+        r =  requests.get(plain_text_url)
+
+        return r.text
 
     def clean_text(self, text: str) -> str:
-
-
 
         # 0. Remove all the non-ascii characters
         clean = text.encode("ascii", "ignore").decode()
