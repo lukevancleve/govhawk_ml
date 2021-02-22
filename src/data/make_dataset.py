@@ -18,7 +18,7 @@ def main(vol_path):
 
     # Bill_version.csv is the provided reference for every unique text in the corpus, the actual files
     # are stored in S3 with the URI as a function of original URL to the document.
-    bv = pd.read_csv("./data/external/bill_version.csv", sep=";", encoding="latin1", parse_dates=True)
+    bv = pd.read_csv("./references/external/bill_version.csv", sep=";", encoding="latin1", parse_dates=True)
 
     D = data_downloader.data_downloader(vol_path)
 
