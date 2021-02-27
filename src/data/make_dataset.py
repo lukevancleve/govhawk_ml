@@ -22,7 +22,7 @@ def main(vol_path):
 
     D = data_downloader.data_downloader(vol_path)
 
-    D.download_clean_save_from_df(bv[1:1000])
+    D.download_clean_save_from_df(bv)
 
 
 if __name__ == '__main__':
