@@ -35,6 +35,11 @@ class legislationDataset():
     
         return (x, label_id)
 
+    def select_vars(self, df):
+
+        return tf.data.Dataset.from_tensor_slices((df['text'].values, df['signed'].values, df['partisan_lean'].values))
+
+
     def create_batch_stream(self, df):
 
         df_train_full, df_test = train_test_split(df, train_size = self.train_test_ratio, random_state = 1, stratify = df.signed.values)
@@ -44,9 +49,9 @@ class legislationDataset():
         print(f"Test size: {df_test.shape}")
 
 
-        train_data1 = tf.data.Dataset.from_tensor_slices((df_train['text'].values, df_train['signed'].values, df_train['partisan_lean'].values))
-        val_data1   = tf.data.Dataset.from_tensor_slices((df_valid['text'].values, df_valid['signed'].values, df_valid['partisan_lean'].values))
-        test_data1  = tf.data.Dataset.from_tensor_slices((df_test['text'].values, df_test['signed'].values, df_test['partisan_lean'].values))
+        train_data1 = self.select_vars(df_train)
+        val_data1   = self.select_vars(df_valid)
+        test_data1  = self.select_vars(df_test)
 
         if self.testing:
             for text, label, pl in train_data1.take(1):
