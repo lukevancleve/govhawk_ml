@@ -76,3 +76,118 @@ class legislationDataset():
             )
 
         return train_data, val_data, test_data
+
+
+
+class legislationDatasetText(legislationDataset):
+
+    def __init__(self, config):
+        super().__init__(config)
+    
+    def to_feature(self, text, label):
+  
+        output = self.tokenizer(text.numpy().decode('ascii'), return_tensors="tf", truncation=True, padding='max_length', max_length=self.max_length)
+    
+        return (tf.squeeze(output['input_ids'],0), tf.cast(label, 'int32'))
+
+    def to_feature_map(self, text, label):
+        input_ids, label_id = tf.py_function(self.to_feature, [text, label], Tout = [tf.int32, tf.int32])
+    
+        input_ids.set_shape([self.max_length])
+        label_id.set_shape([])
+    
+        x = {
+            'input_ids': input_ids
+        }
+    
+        return (x, label_id)
+
+    def select_vars(self, df):
+
+        return tf.data.Dataset.from_tensor_slices((df['text'].values, df['signed'].values))
+
+class legislationDatasetAll(legislationDataset):
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.n_sc_id_classes = config['n_sc_id_classes']
+
+    def to_feature(self, text, label, partisan_lean, version_number):
+  
+        output = self.tokenizer(text.numpy().decode('ascii'), return_tensors="tf", truncation=True, padding='max_length', max_length=self.max_length)
+    
+        return (tf.squeeze(output['input_ids'],0), tf.cast(label, 'int32'), tf.cast(partisan_lean, 'float32'), tf.cast(version_number, 'float32'))
+
+    def sc_one_hot(self, sc_id):
+
+        return tf.one_hot(sc_id, self.n_sc_id_classes, dtype='int32')
+
+    def to_feature_map(self, text, label, partisan_lean, version_number, sc_id):
+        input_ids, label_id, partisan_lean, version_number  \
+           = tf.py_function(self.to_feature, [text, label, partisan_lean, version_number], Tout = [tf.int32, tf.int32, tf.float32, tf.float32])
+    
+        sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.int32])
+
+        input_ids.set_shape([self.max_length])
+        label_id.set_shape([])
+        partisan_lean.set_shape([])
+        version_number.set_shape([])
+        #sc_ids = 
+    
+        x = {
+            'input_ids': input_ids,
+            'partisan_lean': partisan_lean,
+            'version_number': version_number,
+            'sc_ids': sc_ids
+        }
+    
+        return (x, label_id)
+
+    def select_vars(self, df):
+
+        return tf.data.Dataset.from_tensor_slices((df['text'].values, 
+                                                   df['signed'].values, 
+                                                   df['partisan_lean'].values, 
+                                                   df['version_number'].values, 
+                                                   df['sc_id_cat'].values))
+
+class legislationDatasetRevCat(legislationDataset):
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.n_sc_id_classes = config['n_sc_id_classes']
+
+    def to_feature(self, text, label,  version_number):
+  
+        output = self.tokenizer(text.numpy().decode('ascii'), return_tensors="tf", truncation=True, padding='max_length', max_length=self.max_length)
+    
+        return (tf.squeeze(output['input_ids'],0), tf.cast(label, 'int32'),  tf.cast(version_number, 'float32'))
+
+    def sc_one_hot(self, sc_id):
+
+        return tf.one_hot(sc_id, self.n_sc_id_classes, dtype='int32')
+
+    def to_feature_map(self, text, label,  version_number, sc_id):
+        input_ids, label_id,  version_number  \
+           = tf.py_function(self.to_feature, [text, label, version_number], Tout = [tf.int32, tf.int32, tf.float32])
+    
+        sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.int32])
+
+        input_ids.set_shape([self.max_length])
+        label_id.set_shape([])
+        version_number.set_shape([])
+    
+        x = {
+            'input_ids': input_ids,
+            'version_number': version_number,
+            'sc_ids': sc_ids
+        }
+    
+        return (x, label_id)
+
+    def select_vars(self, df):
+
+        return tf.data.Dataset.from_tensor_slices((df['text'].values, 
+                                                   df['signed'].values, 
+                                                   df['version_number'].values, 
+                                                   df['sc_id_cat'].values))
