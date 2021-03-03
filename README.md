@@ -62,9 +62,22 @@ The csv files in `data/external/` have the location in S3 of all the raw bill te
 
 
 
+# EC2 usage of jupyter
 
 
 
+In terminal 1:
+
+` ssh -i "~/.ssh/mlgovhawk1.pem" ec2-user@ec2-3-236-89-195.compute-1.amazonaws.com
+` jupyter notebook --no-browser --port=8888
+
+To set up an ssh tunnel for Jupyter:
+
+` ssh -i ~/.ssh/mlgovhawk1.pem -L 8000:localhost:8888 ubuntu@ec2-3-231-151-148.compute-1.amazonaws.com
+
+You can then use the notebooks on the local browser from:
+
+` http://localhost:8000/
 
 --------
 
