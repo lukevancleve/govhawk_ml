@@ -1,6 +1,7 @@
 import tensorflow as tf
 from transformers import LongformerTokenizer
 from sklearn.model_selection import train_test_split
+from transformers import TFLongformerModel, TFLongformerForSequenceClassification
 
 class legislationDataset():
 
@@ -191,3 +192,72 @@ class legislationDatasetRevCat(legislationDataset):
                                                    df['signed'].values, 
                                                    df['version_number'].values, 
                                                    df['sc_id_cat'].values))
+
+def deep_legis_text(config):
+
+    model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
+    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
+    x = model.longformer(ids) # Get the main Layer
+    x = x['last_hidden_state'][:,0,:]
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Dense(700, activation='relu')(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+    dl_model = tf.keras.Model(inputs={"input_ids":ids}, outputs=[x])
+
+    return dl_model
+
+
+def deep_legis_pl(config):
+
+    model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
+    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
+    pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
+    x = model.longformer(ids) # Get the main Layer
+    x = x['last_hidden_state'][:,0,:]
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.concat([x, pl], axis=-1)
+    x = tf.keras.layers.Dense(700, activation='relu')(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+    dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl}, outputs=[x])
+
+    return dl_model
+
+
+def deep_legis_all(config):
+
+    model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
+    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
+    pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
+    vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
+    cat = tf.keras.Input((config['n_sc_id_classes'], ), dtype=tf.int32, name='sc_id')
+
+    x = model.longformer(ids) # Get the main Layer
+    x = x['last_hidden_state'][:,0,:]
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.concat([x, pl, vn, tf.cast(cat, 'float32')], axis=-1)
+    x = tf.keras.layers.Dense(700, activation='relu')(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+    dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])
+
+    return dl_model
+
+def deep_legis_vn_cat(config):
+
+    model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
+    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
+    vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
+    cat = tf.keras.Input((config['n_sc_id_classes'], ), dtype=tf.int32, name='sc_id')
+
+    x = model.longformer(ids) # Get the main Layer
+    x = x['last_hidden_state'][:,0,:]
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.concat([x, vn, tf.cast(cat, 'float32')], axis=-1)
+    x = tf.keras.layers.Dense(700, activation='relu')(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+    dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "sc_id": cat}, outputs=[x])
+
+    return dl_model
