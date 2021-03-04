@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tensorflow_hub as hub
 import sys
 import os
 from sklearn.preprocessing import LabelEncoder
@@ -21,13 +20,13 @@ from src.models.deeplegis import deep_legis_pl, deep_legis_text, deep_legis_all,
 
 
 ####################
-REDUCE_BY_FACTOR = 1000 # Make the dataset smaller for development purposes
+REDUCE_BY_FACTOR = 100 # Make the dataset smaller for development purposes
 train_test_ratio = 0.91
 train_valid_ratio = 0.90
 
 if 'DATA_VOL' not in os.environ:
     # Manually set:
-    DATA_VOL = '/home/luke/tmp_vol/'
+    DATA_VOL = '/datavol'
 else:
     DATA_VOL = os.environ['DATA_VOL']
     
@@ -44,16 +43,19 @@ df['text'] = tmp
 df = df.reset_index(drop=True)
 sc_id_encoder = LabelEncoder()
 df['sc_id_cat'] = sc_id_encoder.fit_transform(df['sc_id'])
+print(df.head())
+assert df['text'][0] is not None
 ###########################3
 
 
 config = {}
 config['max_length'] = 128
-config['train_batch_size'] = 32
+config['train_batch_size'] = 4
 config['testing'] = False
 config['train_test_ratio'] = 0.91
 config['train_valid_ratio'] = 0.90
 config['n_sc_id_classes'] = len(sc_id_encoder.classes_)
+config['epochs'] = 5
 
 print(config)
 legis_builder = legislationDataset(config)
@@ -65,9 +67,11 @@ dl_pl.summary()
 dl_pl.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
               loss=tf.keras.losses.BinaryCrossentropy(),
               metrics = [tf.keras.metrics.BinaryAccuracy()])
-epochs = 4
-history = model.fit(train_data,
+
+history = dl_pl.fit(train_data,
                    validation_data=val_data,
-                   epochs=epochs,
-                   verbose=1)
+                   epochs=config['epochs'],
+                   verbose=2, steps_per_epoch=10)
+
+dl_pl.save('models/dl_pl')
 print(history)
