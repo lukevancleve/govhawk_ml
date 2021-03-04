@@ -121,19 +121,19 @@ class legislationDatasetAll(legislationDataset):
 
     def sc_one_hot(self, sc_id):
 
-        return tf.one_hot(sc_id, self.n_sc_id_classes, dtype='int32')
+        return tf.one_hot(sc_id, self.n_sc_id_classes, dtype='float32')
 
     def to_feature_map(self, text, label, partisan_lean, version_number, sc_id):
         input_ids, label_id, partisan_lean, version_number  \
            = tf.py_function(self.to_feature, [text, label, partisan_lean, version_number], Tout = [tf.int32, tf.int32, tf.float32, tf.float32])
     
-        sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.int32])
+        sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
 
         input_ids.set_shape([self.max_length])
         label_id.set_shape([])
         partisan_lean.set_shape([])
         version_number.set_shape([])
-        #sc_ids = 
+        sc_ids = sc_ids[0]
     
         x = {
             'input_ids': input_ids,
@@ -173,6 +173,7 @@ class legislationDatasetRevCat(legislationDataset):
            = tf.py_function(self.to_feature, [text, label, version_number], Tout = [tf.int32, tf.int32, tf.float32])
     
         sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
+        sc_ids = sc_ids[0]
 
         input_ids.set_shape([self.max_length])
         label_id.set_shape([])
@@ -258,18 +259,21 @@ def deep_legis_vn_cat(config):
     model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
     ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
     vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
-    cat = tf.keras.Input((config['n_sc_id_classes'], ), dtype=tf.int32, name='sc_id')
+    cat = tf.keras.Input((config['n_sc_id_classes'], ), dtype=tf.float32, name='sc_id')
 
     x = model.longformer(ids) # Get the main Layer
     x = x['last_hidden_state'][:,0,:]
     x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.concat([x, vn, tf.cast(cat, 'float32')], axis=-1)
+    x = tf.concat([x, vn, cat], axis=-1)
     x = tf.keras.layers.Dense(700, activation='relu')(x)
     x = tf.keras.layers.Dropout(0.2)(x)
     x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
     dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "sc_id": cat}, outputs=[x])
 
     return dl_model
+
+
+#########################################################
 
 def deep_legis_no_text(config):
 
@@ -302,7 +306,7 @@ class legislationDatasetNoText(legislationDataset):
 
     def sc_one_hot(self, sc_id):
 
-        return tf.one_hot(sc_id, self.n_sc_id_classes, dtype='int32'), (self.n_sc_id_classes,)
+        return tf.one_hot(sc_id, self.n_sc_id_classes, dtype='float32')
 
     def to_feature_map(self,  label, partisan_lean, version_number, sc_id):
 
@@ -311,11 +315,10 @@ class legislationDatasetNoText(legislationDataset):
     
         sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
         sc_ids = sc_ids[0]
-
+        
         label_id.set_shape([])
         partisan_lean.set_shape([])
         version_number.set_shape([])
-        sc_ids.set_shape([]) 
     
         x = {
             'partisan_lean': partisan_lean,
