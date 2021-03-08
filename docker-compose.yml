@@ -8,7 +8,6 @@ services:
       - "5000:8888"
     volumes: 
       - "/home/luke/tmp1/:/data/"
-#     - "/home/luke/repos/govhawk_ml:/app/:cached"
       - "/home/luke/repos/govhawk_ml/:/app:cached"
     environment: 
-      - DATA_VOL='/data/'
+      - DATA_VOL=/data/
