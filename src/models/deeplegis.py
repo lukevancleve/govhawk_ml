@@ -1,7 +1,7 @@
 import tensorflow as tf
 from transformers import LongformerTokenizer
 from sklearn.model_selection import train_test_split
-from transformers import TFLongformerModel, TFLongformerForSequenceClassification
+from transformers import TFLongformerModel, TFLongformerForSequenceClassification, TFBertForSequenceClassification
 
 class legislationDataset():
 
@@ -12,7 +12,7 @@ class legislationDataset():
         self.testing = config['testing']
         self.train_test_ratio = config['train_test_ratio']
         self.train_valid_ratio = config['train_valid_ratio']
-        self.tokenizer = LongformerTokenizer.from_pretrained('allenai/longformer-base-4096')
+        self.tokenizer = config['tokenizer']
 
 
     def to_feature(self, text, label, partisan_lean):
@@ -334,3 +334,28 @@ class legislationDatasetNoText(legislationDataset):
                                                    df['partisan_lean'].values, 
                                                    df['version_number'].values, 
                                                    df['sc_id_cat'].values))
+
+
+def bert_all(config):
+
+    model = TFBertForSequenceClassification.from_pretrained("bert-base-uncased")
+    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
+    pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
+    vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
+    cat = tf.keras.Input((config['n_sc_id_classes'] ), dtype=tf.float32, name='sc_id')
+    # print(cat.shape)
+    #cat = tf.keras.Input(shape=None, dtype=tf.float32, name='sc_id')
+
+    #cat = tf.cast(cat, 'float32')
+    #cat = tf.squeeze(cat,1)
+
+    x = model.bert(ids) # Get the main Layer
+    x = x['last_hidden_state'][:,0,:]
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.concat([x, pl, vn, cat], axis=-1)
+    x = tf.keras.layers.Dense(700, activation='relu')(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+    dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])
+
+    return dl_model
