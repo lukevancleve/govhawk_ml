@@ -111,6 +111,12 @@ class data_downloader():
         # 1. Remove all the line numbers from bill text
         clean = re.sub('\n\s*\d*\s', '\n', clean)
 
+        # Remove ic 3-2-3-233
+        clean = re.sub('ic\s+[\d-]+', '', clean, flags=re.IGNORECASE )
+
+        # Remove p.l.333-3333
+        clean = re.sub('p\.l\.\s+[\d-]+', '', clean, flags=re.IGNORECASE )
+
         clean = re.sub('SB\d+ Enrolled.*?\\n', '', clean)
 
         # remove line feed looking thing:
