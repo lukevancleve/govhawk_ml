@@ -24,6 +24,8 @@ class BaseLegisModel(ABC):
         Training function for all (nearly?) versions of DeepLegis.
         """
 
+        es_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=3)
+
         tensorboard_callback = tf.keras.callbacks.TensorBoard(
                                            log_dir=self.config['log_dir'], 
                                            histogram_freq=1, 
@@ -47,7 +49,7 @@ class BaseLegisModel(ABC):
         model_history = self.deep_legis_model.fit(self.train_batches, 
                                        epochs=self.config['epochs'],
                                        validation_data=self.val_batches,
-                                       callbacks = [cp_callback, tensorboard_callback])
+                                       callbacks = [cp_callback, tensorboard_callback, es_callback])
         return model_history
 
     def evaluate(self):
