@@ -9,6 +9,7 @@ class BaseLegisModel(ABC):
     """Abstract Model class that is inherited to all models"""
     def __init__(self, config: Dict):
         self.config = config
+        self.n_dense_layers = 700
 
     @abstractmethod
     def load_data(self):
@@ -35,30 +36,32 @@ class BaseLegisModel(ABC):
                          tf.keras.metrics.AUC()]
         )
 
-        model_history = self.deep_legis_model.fit(self.train, epochs=self.epochs,
+        model_history = self.deep_legis_model.fit(self.train_batches, epochs=self.epochs,
                                        steps_per_epoch=self.steps_per_epoch,
                                        validation_steps=self.validation_steps,
-                                       validation_data=self.val,
+                                       validation_data=self.val_batches,
                                        callbacks = [checkpoint_path, tensorboard_callback])
         return model_history
 
     def evaluate(self):
         predictions = []
-        for x, label in self.test.take(1):
+        for x, label in self.test_batches.take(1):
             predictions.append( (self.deep_legis_model.predict(x), label) )
         return predictions
 
+
 class deepLegisAll(BaseLegisModel):
+    """
+    DeepLegis model with all metadata included. Base model is longformer.
+    """
     def __init__(self, config):
         super().__init__(config)
         
 
     def load_data(self, df):
         
-        train, val, test = legislationDatasetAll(self.config).create_batch_stream(df)
-        self.train = train
-        self.val = val
-        self.test = test
+        self.train_batches, self.val_batches, self.test_batches = \
+            legislationDatasetAll(self.config).create_batch_stream(df)
 
     def build(self):
 
@@ -74,7 +77,7 @@ class deepLegisAll(BaseLegisModel):
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.concat([x, pl, vn, cat], axis=-1)
-        x = tf.keras.layers.Dense(700, activation='relu')(x)
+        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])       
@@ -83,122 +86,158 @@ class deepLegisAll(BaseLegisModel):
 
 
 
+class deepLegisText(BaseLegisModel):
+    """
+    DeepLegis model with only text included. Base model is longformer.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
+
+    def load_data(self, df):
+        
+        self.train_batches, self.val_batches, self.test_batches = \
+            legislationDatasetText(self.config).create_batch_stream(df)
+
+    def build(self):
+
+        self.base_transformer_model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
+
+        ids = tf.keras.Input((self.config['max_length']), dtype=tf.int32, name='input_ids')
+        x = model.longformer(ids) # Get the main Layer
+        x = x['last_hidden_state'][:,0,:]
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+        dl_model = tf.keras.Model(inputs={"input_ids":ids}, outputs=[x])
+
+        self.deep_legis_model = dl_model
 
 
-def deep_legis_text(config):
+class deepLegisNoText(BaseLegisModel):
+    """
+    DeepLegis model with no text included. Reference model for information gain from
+    adding the text.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
 
-    model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
-    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
-    x = model.longformer(ids) # Get the main Layer
-    x = x['last_hidden_state'][:,0,:]
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Dense(700, activation='relu')(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-    dl_model = tf.keras.Model(inputs={"input_ids":ids}, outputs=[x])
+    def load_data(self, df):
+        
+        self.train_batches, self.val_batches, self.test_batches = \
+            legislationDatasetNoText(self.config).create_batch_stream(df)
 
-    return dl_model
+    def build(self):
 
+        pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
+        vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
+        cat = tf.keras.Input((self.config['n_sc_id_classes'] ), dtype=tf.float32, name='sc_id')
 
-def deep_legis_pl(config):
+        x = tf.concat([pl, vn, cat], axis=-1)
+        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+        dl_model = tf.keras.Model(inputs={"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])
 
-    model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
-    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
-    pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
-    x = model.longformer(ids) # Get the main Layer
-    x = x['last_hidden_state'][:,0,:]
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.concat([x, pl], axis=-1)
-    x = tf.keras.layers.Dense(32, activation='relu')(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-    dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl}, outputs=[x])
-
-    return dl_model
+        self.deep_legis_model = dl_model
 
 
-def deep_legis_all(config):
 
-    model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
-    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
-    pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
-    vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
-    cat = tf.keras.Input((config['n_sc_id_classes'] ), dtype=tf.float32, name='sc_id')
-    print(cat.shape)
-    #cat = tf.keras.Input(shape=None, dtype=tf.float32, name='sc_id')
+class deepLegisPartisanLean(BaseLegisModel):
+    """
+    DeepLegis model with text and partisan lean included. 
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
 
-    #cat = tf.cast(cat, 'float32')
-    #cat = tf.squeeze(cat,1)
+    def load_data(self, df):
+        
+        self.train_batches, self.val_batches, self.test_batches = \
+            legislationDatasetPartisanLean(self.config).create_batch_stream(df)
 
-    x = model.longformer(ids) # Get the main Layer
-    x = x['last_hidden_state'][:,0,:]
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.concat([x, pl, vn, cat], axis=-1)
-    x = tf.keras.layers.Dense(700, activation='relu')(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-    dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])
+    def build(self):
 
-    return dl_model
+        self.base_transformer_model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
 
-def deep_legis_vn_cat(config):
+        ids = tf.keras.Input((self.config['max_length']), dtype=tf.int32, name='input_ids')
+        pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
+        x = model.longformer(ids) # Get the main Layer
+        x = x['last_hidden_state'][:,0,:]
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.concat([x, pl], axis=-1)
+        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+        dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl}, outputs=[x])
 
-    model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
-    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
-    vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
-    cat = tf.keras.Input((config['n_sc_id_classes'], ), dtype=tf.float32, name='sc_id')
-
-    x = model.longformer(ids) # Get the main Layer
-    x = x['last_hidden_state'][:,0,:]
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.concat([x, vn, cat], axis=-1)
-    x = tf.keras.layers.Dense(700, activation='relu')(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-    dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "sc_id": cat}, outputs=[x])
-
-    return dl_model
+        self.deep_legis_model = dl_model
 
 
-#########################################################
+class deepLegisRevCat(BaseLegisModel):
+    """
+    DeepLegis model with text, version number, partisan lean included. 
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
 
-def deep_legis_no_text(config):
+    def load_data(self, df):
+        
+        self.train_batches, self.val_batches, self.test_batches = \
+            legislationDatasetRevCat(self.config).create_batch_stream(df)
 
-    pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
-    vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
-    cat = tf.keras.Input((config['n_sc_id_classes'] ), dtype=tf.float32, name='sc_id')
+    def build(self):
 
-    print(cat.shape)
-    x = tf.concat([pl, vn, cat], axis=-1)
- #   x = tf.concat([pl, vn], axis=-1)
-    x = tf.keras.layers.Dense(700, activation='relu')(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-    dl_model = tf.keras.Model(inputs={"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])
+        self.base_transformer_model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
 
-    return dl_model
+        ids = tf.keras.Input((self.config['max_length']), dtype=tf.int32, name='input_ids')
+        vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
+        cat = tf.keras.Input((self.config['n_sc_id_classes'], ), dtype=tf.float32, name='sc_id')
+
+        x = model.longformer(ids) # Get the main Layer
+        x = x['last_hidden_state'][:,0,:]
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.concat([x, vn, cat], axis=-1)
+        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+        dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "sc_id": cat}, outputs=[x])
 
 
-def bert_all(config):
+        self.deep_legis_model = dl_model
 
-    model = TFBertForSequenceClassification.from_pretrained("bert-base-uncased")
-    ids = tf.keras.Input((config['max_length']), dtype=tf.int32, name='input_ids')
-    pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
-    vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
-    cat = tf.keras.Input((config['n_sc_id_classes'] ), dtype=tf.float32, name='sc_id')
-    # print(cat.shape)
-    #cat = tf.keras.Input(shape=None, dtype=tf.float32, name='sc_id')
 
-    #cat = tf.cast(cat, 'float32')
-    #cat = tf.squeeze(cat,1)
+class deepLegisBertAll(BaseLegisModel):
+    """
+    DeepLegis model with BERT as the transformer, ALL metadata included.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
 
-    x = model.bert(ids) # Get the main Layer
-    x = x['last_hidden_state'][:,0,:]
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.concat([x, pl, vn, cat], axis=-1)
-    x = tf.keras.layers.Dense(700, activation='relu')(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-    dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])
+    def load_data(self, df):
+        
+        self.train_batches, self.val_batches, self.test_batches = \
+            legislationDatasetAll(self.config).create_batch_stream(df)
 
-    return dl_model
+    def build(self):
+
+        self.base_transformer_model = TFBertForSequenceClassification.from_pretrained("bert-base-uncased")
+        ids = tf.keras.Input((self.config['max_length']), dtype=tf.int32, name='input_ids')
+        vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
+        cat = tf.keras.Input((self.config['n_sc_id_classes'], ), dtype=tf.float32, name='sc_id')
+
+        x = model.longformer(ids) # Get the main Layer
+        x = x['last_hidden_state'][:,0,:]
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.concat([x, vn, cat], axis=-1)
+        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+        dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "sc_id": cat}, outputs=[x])
+
+
+        self.deep_legis_model = dl_model
