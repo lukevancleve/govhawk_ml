@@ -1,13 +1,11 @@
 services:
   dev:
-    image: dlbox
-    #build: .
-    stdin_open: true  # docker run -i   (equivalent)
-    tty: true         # docker run -t   (equivalent)
-    ports:
-      - "5000:8888"
-    volumes: 
-      - "/home/luke/tmp1/:/data/"
-      - "/home/luke/repos/govhawk_ml/:/app:cached"
-    environment: 
-      - DATA_VOL=/data/
+    build:
+      image: dlbox
+      ports:
+        - "5000:8888"
+      volumes: 
+        - "/datavol/:/data/"
+        - "/home/ubuntu/gov_prod/:/app:cached"
+      environment: 
+        - DATA_VOL=/data/

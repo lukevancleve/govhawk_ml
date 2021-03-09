@@ -24,13 +24,13 @@ else:
     DATA_VOL = os.environ['DATA_VOL']
     
 # Pre-wrangled metadata
-df = pd.read_csv("eferences/derived/ml_data.csv", encoding="latin1", parse_dates=True)
+df = pd.read_csv("references/derived/ml_data.csv", encoding="latin1", parse_dates=True)
 df.id = df.id.astype(int)    
 print(f"Original number of examples: {len(df)}")
 df = df.sample(n=int(len(df)/REDUCE_BY_FACTOR)) #
 print(f"Reduced number of examples:  {len(df)}")
 
-df['text'] = read_parallel_local(df['id'], DATA_VOL + "/clean/"
+df['text'] = read_parallel_local(df['id'], DATA_VOL + "/clean/")
 
 df = df.reset_index(drop=True)
 
@@ -56,5 +56,5 @@ config['epochs'] = 2
 b = deepLegisAll(config)
 b.load_data(df)
 b.build()
-print(b.deep_legis_model.summary()
+print(b.deep_legis_model.summary())
 b.train()
