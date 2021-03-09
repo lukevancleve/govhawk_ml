@@ -24,8 +24,16 @@ class BaseLegisModel(ABC):
         Training function for all (nearly?) versions of DeepLegis.
         """
 
-        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1, profile_batch='10, 15')
-        checkpoint_path = self.checkpoint_path
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(
+                                           log_dir=self.config['log_dir'], 
+                                           histogram_freq=1, 
+                                           profile_batch='10, 15'
+        )
+        
+        checkpoint_path = self.config['checkpoint_path']
+        cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                 save_weights_only=True,
+                                                 verbose=1)
 
         self.deep_legis_model.compile(
               optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
@@ -36,11 +44,10 @@ class BaseLegisModel(ABC):
                          tf.keras.metrics.AUC()]
         )
 
-        model_history = self.deep_legis_model.fit(self.train_batches, epochs=self.epochs,
-                                       steps_per_epoch=self.steps_per_epoch,
-                                       validation_steps=self.validation_steps,
+        model_history = self.deep_legis_model.fit(self.train_batches, 
+                                       epochs=self.config['epochs'],
                                        validation_data=self.val_batches,
-                                       callbacks = [checkpoint_path, tensorboard_callback])
+                                       callbacks = [cp_callback, tensorboard_callback])
         return model_history
 
     def evaluate(self):

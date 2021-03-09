@@ -12,8 +12,6 @@ class legislationDataset(ABC):
         self.testing = config['testing']
         self.train_test_ratio = config['train_test_ratio']
         self.train_valid_ratio = config['train_valid_ratio']
-        # ## TODO
-
 
     @abstractmethod
     def to_feature(self):
