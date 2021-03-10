@@ -45,7 +45,7 @@ class legislationDataset(ABC):
                 print(pl)
 
         train_data = (train_data1.map(self.to_feature_map, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-             .shuffle(1000)
+             .shuffle(250)
              .batch(self.train_batch_size, drop_remainder=True)
              .prefetch(tf.data.experimental.AUTOTUNE) 
              )

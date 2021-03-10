@@ -123,7 +123,7 @@ class noTextKernelInitializer(tf.keras.initializers.Initializer):
         else:
             DATA_VOL = os.environ['DATA_VOL']
           
-        model_location = DATA_VOL + "models/no_next/full_model.h5"
+        model_location = DATA_VOL + "models/no_text/full_model.h5"
         no_text_model = tf.keras.models.load_model(model_location)
         return tf.convert_to_tensor(no_text_model.get_weights()[0])
 
@@ -144,7 +144,7 @@ class noTextBiasInitializer(tf.keras.initializers.Initializer):
         else:
             DATA_VOL = os.environ['DATA_VOL']
           
-        model_location = DATA_VOL + "models/no_next/full_model.h5"
+        model_location = DATA_VOL + "models/no_text/full_model.h5"
         no_text_model = tf.keras.models.load_model(model_location)
         return tf.convert_to_tensor(no_text_model.get_weights()[1])
     def get_config(self):  # To support serialization
