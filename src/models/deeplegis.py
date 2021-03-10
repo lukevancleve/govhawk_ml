@@ -127,6 +127,9 @@ class noTextKernelInitializer(tf.keras.initializers.Initializer):
         no_text_model = tf.keras.models.load_model(model_location)
         return tf.convert_to_tensor(no_text_model.get_weights()[0])
 
+    def get_config(self):  # To support serialization
+        return {}
+
 class noTextBiasInitializer(tf.keras.initializers.Initializer):
 
     def __init__(self):
@@ -144,7 +147,8 @@ class noTextBiasInitializer(tf.keras.initializers.Initializer):
         model_location = DATA_VOL + "models/no_next/full_model.h5"
         no_text_model = tf.keras.models.load_model(model_location)
         return tf.convert_to_tensor(no_text_model.get_weights()[1])
-
+    def get_config(self):  # To support serialization
+        return {}
 class deepLegisText(BaseLegisModel):
     """
     DeepLegis model with only text included. Base model is longformer.
