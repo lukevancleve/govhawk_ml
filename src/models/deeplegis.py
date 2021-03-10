@@ -4,6 +4,7 @@ import tensorflow as tf
 from transformers import LongformerTokenizer
 from transformers import TFLongformerModel, TFLongformerForSequenceClassification, TFBertForSequenceClassification
 from src.models.data_loader import *
+import os
 
 class BaseLegisModel(ABC):
     """Abstract Model class that is inherited to all models"""
@@ -37,8 +38,13 @@ class BaseLegisModel(ABC):
                                                  save_weights_only=True,
                                                  verbose=1)
 
+        if 'learning_rate' in self.config:
+            learning_rate = self.config['learning_rate']
+        else:
+            learning_rate = 1e-5
+
         self.deep_legis_model.compile(
-              optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
+              optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
               loss=tf.keras.losses.BinaryCrossentropy(),
               metrics = [tf.keras.metrics.BinaryAccuracy(),
                          tf.keras.metrics.Precision(),
@@ -53,10 +59,9 @@ class BaseLegisModel(ABC):
         return model_history
 
     def evaluate(self):
-        predictions = []
-        for x, label in self.test_batches.take(1):
-            predictions.append( (self.deep_legis_model.predict(x), label) )
-        return predictions
+
+        return  self.deep_legis_model.evaluate(self.test_batches, return_dict=True)
+        
 
 
 class deepLegisAll(BaseLegisModel):
@@ -74,26 +79,71 @@ class deepLegisAll(BaseLegisModel):
 
     def build(self):
 
-        self.base_transformer_model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
-
-        ids = tf.keras.Input((self.config['max_length']), dtype=tf.int32, name='input_ids')
+        # Metadata
         pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
         vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
         cat = tf.keras.Input((self.config['n_sc_id_classes'] ), dtype=tf.float32, name='sc_id')
-        
-        x = self.base_transformer_model.longformer(ids) # Get the main Layer
+        meta = tf.concat([pl, vn, cat], axis=-1)
 
+        # Load the initial weights with the ones trained from the DL model without text
+        meta = tf.keras.layers.Dense(self.n_dense_layers, activation='relu', name="no_text_dense_layer",
+                                     kernel_initializer= noTextKernelInitializer, bias_initializer= noTextBiasInitializer)(meta)
+
+        # transformer
+        self.base_transformer_model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
+        ids = tf.keras.Input((self.config['max_length']), dtype=tf.int32, name='input_ids')
+        x = self.base_transformer_model.longformer(ids) # Get the main Layer
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
-        x = tf.concat([x, pl, vn, cat], axis=-1)
-        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+
+        # Join
+        x = tf.concat([x, meta], axis=-1)
+        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu', name="join_dense_layer")(x) 
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])       
 
+
+
+
         self.deep_legis_model = dl_model
 
 
+class noTextKernelInitializer(tf.keras.initializers.Initializer):
+
+    def __init__(self):
+        pass
+
+    def __call__(self, shape, dtype=None):
+
+        if 'DATA_VOL' not in os.environ:
+            # Manually set:
+            DATA_VOL = '/datavol/'
+            #raise("Use Docker")
+        else:
+            DATA_VOL = os.environ['DATA_VOL']
+          
+        model_location = DATA_VOL + "models/no_next/full_model.h5"
+        no_text_model = tf.keras.models.load_model(model_location)
+        return tf.convert_to_tensor(no_text_model.get_weights()[0])
+
+class noTextBiasInitializer(tf.keras.initializers.Initializer):
+
+    def __init__(self):
+        pass
+
+    def __call__(self, shape, dtype=None):
+
+        if 'DATA_VOL' not in os.environ:
+            # Manually set:
+            DATA_VOL = '/datavol/'
+            #raise("Use Docker")
+        else:
+            DATA_VOL = os.environ['DATA_VOL']
+          
+        model_location = DATA_VOL + "models/no_next/full_model.h5"
+        no_text_model = tf.keras.models.load_model(model_location)
+        return tf.convert_to_tensor(no_text_model.get_weights()[1])
 
 class deepLegisText(BaseLegisModel):
     """
@@ -145,7 +195,7 @@ class deepLegisNoText(BaseLegisModel):
         cat = tf.keras.Input((self.config['n_sc_id_classes'] ), dtype=tf.float32, name='sc_id')
 
         x = tf.concat([pl, vn, cat], axis=-1)
-        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu', name="no_text_dense_layer")(x)
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         dl_model = tf.keras.Model(inputs={"partisan_lean":pl, "version_number": vn, "sc_id": cat}, outputs=[x])
@@ -181,6 +231,7 @@ class deepLegisPartisanLean(BaseLegisModel):
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         dl_model = tf.keras.Model(inputs={"input_ids":ids,"partisan_lean":pl}, outputs=[x])
+       
 
         self.deep_legis_model = dl_model
 
