@@ -15,20 +15,22 @@ pl = pd.read_csv(DERIVED_DIR + "/partisan_lean.csv", sep=",", encoding="latin1",
 
 if 'DATA_VOL' not in os.environ:
     # Manually set:
-    raise("DATA_VOL should be set in the Docker image.")
-    #DATA_VOL = '/datavol/'
+    #raise("DATA_VOL should be set in the Docker image.")
+    DATA_VOL = '/home/luke/datavol/'
 else:
     DATA_VOL = os.environ['DATA_VOL']
     
 version_exists = []
 for i in bv['id']:
+
     fn = DATA_VOL + 'clean/' + str(i) + '.txt'
+    #print(fn)
     if os.path.exists(fn):
         version_exists.append(True)
     else:
         version_exists.append(False)
 
-print(f"Number of total possible bill_versions:{len(bv)}")
+print(f'Number of total possible bill_versions:{ len(bv) }')
 print(f"Number of bill versions in DATA_VOL/clean/ dir:{sum(version_exists)}")
 print(f"Percentage:{sum(version_exists)/len(bv)*100:.2f}%")
 

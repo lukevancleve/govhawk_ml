@@ -1,7 +1,7 @@
 govhawk_ml
 ==============================
 
-ML on state level legislative text
+ML NLP on state level legislative text. Currently a __work in progress__. Plan is to be deliverable end of March 2021.
 
 Project Organization
 ------------
@@ -73,7 +73,7 @@ In terminal 1:
 
 To set up an ssh tunnel for Jupyter:
 
-` ssh -i ~/.ssh/mlgovhawk1.pem -L 8000:localhost:8888 ubuntu@ec2-3-231-151-148.compute-1.amazonaws.com
+` ssh -i ~/.ssh/mlgovhawk1.pem -L 8000:localhost:8888 ubuntu@ec2-18-208-200-33.compute-1.amazonaws.com
 
 You can then use the notebooks on the local browser from:
 

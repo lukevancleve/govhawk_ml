@@ -5,6 +5,7 @@
 #
 # docker build -t dlbox .
 # docker-compose up dev
+# docker exec -it
 ##
 
 FROM python:3.8-slim
