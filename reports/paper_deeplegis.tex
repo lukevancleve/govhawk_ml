@@ -78,19 +78,29 @@ carry over from one to the next. Texas meets every two years. In all there are 1
 
 \subsection{Transformers}
 
-Transformers revolutionized natural language processing with the invention of the attention mechanism \cite{DBLP:journals/corr/VaswaniSPUJGKP17}.
+Transformers revolutionized natural language processing with the invention of the attention mechanism \cite{attentionisallyouneed}.
 
-$$ Attention(Q,K,V) = Softmax(\frac{QK^T}{\sqrt{d_k}})V $$
+\begin{equation}
+Attention(Q,K,V) = Softmax(\frac{QK^T}{\sqrt{d_k}}) * V
+\end{equation}
 
-For a single token embedding (a vector) the \textit{query (Q)} is a vector: Attention(vector, matrix, matrix) \rightarrow vector.
+%For a single token embedding (a vector) the \textit{query (Q)} is a vector: Attention(vector, matrix, matrix) \rightarrow vector.
 
-$$Attention(query, Key, Value) = Softmax(query * Key^T) * Value$$
+Understanding a single token attention:
+\begin{equation}
+Attention(query, Key, Value) = Softmax(query * Key^T) * Value
+\end{equation}
 
-This operation is parallelizable and the algorithm will 
+All tokens can be processed simultaneously with efficient matrix operations.
+\begin{equation}
+Attention(Query, Key, Value) = Softmax(query * Key^T) * Value 
+\end{equation}
+
+%This operation is parallelizable and the algorithm will 
 
 
 
-Huggingface library \cite{DBLP:journals/corr/abs-1910-03771}
+Huggingface library \cite{huggingface}
 
 \includegraphics[width=150mm]{network_architecture.jpg}
 %\caption{Figure X - Network Architecture}
@@ -149,8 +159,8 @@ included as to measure the gain from transformers.
 
 \begin{itemize}
   \item \textbf{papers to digest}
-  \item Categorical Metadata Representation for Customized Text Classification  https://transacl.org/ojs/index.php/tacl/article/view/1619
-  \item Large Scale Legal Text Classification Using Transformer Models  https://arxiv.org/abs/2010.12871
+  \item \href{https://transacl.org/ojs/index.php/tacl/article/view/1619}{Categorical Metadata Representation for Customized Text Classification}
+  \item \href{https://arxiv.org/abs/2010.12871}{Large Scale Legal Text Classification Using Transformer Models}
 \end{itemize}
 
 
