@@ -19,16 +19,21 @@ In the 2018-2019 sessions nearly 200,000 bills were introduced in state legislat
   \item Text Classification with Metadata
 \end{itemize}
 
+
+\subsection{Quantitative Political Science}
+
 Quantitative Political Scientists have been analyzing legisltive data and it's behavior for years. To date most studies in the US have focused on Federal
 legislation given the breadth of high quality datasets available. The methods roughly track the advances in natural laguage processing over the years.
 
-Gerrish and Blei (2011)\cite{Gerrish} construct a topic model given bill text and individual legislator's votes and use supervised methods to explore how
+Gerrish and Blei (2011)\cite{gerrish2011predicting} construct a topic model given bill text and individual legislator's votes and use supervised methods to explore how
 topics relate to voting paterns.
 
-Nay (2017) \cite{nay2017} Takes Federal legislation and predicts enactment using word vectors, gradient boosting, and ensemble stacking. A dozen features
+Nay (2017) \cite{nay2017predicting} Takes Federal legislation and predicts enactment using word vectors, gradient boosting, and ensemble stacking. A dozen features
 are constructed out of bill sponsors, committee data, and subject. Various combinations of text, metadata, and text plus metadata are analysed 
 
-Add more in the literature (TODO).
+\subsection{Text Classification with metadata}
+
+Zhang etal. (2021)\cite{zhang2021match}
 
 \section{Data and Models}
 
@@ -75,10 +80,19 @@ carry over from one to the next. Texas meets every two years. In all there are 1
 
 Transformers revolutionized natural language processing with the invention of the attention mechanism \cite{DBLP:journals/corr/VaswaniSPUJGKP17}.
 
+$$ Attention(Q,K,V) = Softmax(\frac{QK^T}{\sqrt{d_k}})V $$
+
+For a single token embedding (a vector) the \textit{query (Q)} is a vector: Attention(vector, matrix, matrix) \rightarrow vector.
+
+$$Attention(query, Key, Value) = Softmax(query * Key^T) * Value$$
+
+This operation is parallelizable and the algorithm will 
+
+
+
 Huggingface library \cite{DBLP:journals/corr/abs-1910-03771}
 
 \includegraphics[width=150mm]{network_architecture.jpg}
-
 %\caption{Figure X - Network Architecture}
 
 \section{Results}
@@ -108,6 +122,7 @@ Huggingface library \cite{DBLP:journals/corr/abs-1910-03771}
 \hspace{3mm}Bert (128 tokens) &  & & \\
 \hspace{3mm}Bert (512 tokens)  &  & & \\
 \hspace{3mm}DistilBert (512 tokens) &  & & \\
+\hline
 \textbf{Different Transformers (all metadata)} & & & \\
 \hspace{3mm}DistilBert (512 tokens) Feature Selector plus Catboost&  & & \\
 
@@ -142,8 +157,4 @@ included as to measure the gain from transformers.
 \bibliography{deep_legis}
 \bibliographystyle{amsplain}
 
-%\begin{thebibliography}{9}
-
-
-%\end{thebibliography}
 \end{document}
