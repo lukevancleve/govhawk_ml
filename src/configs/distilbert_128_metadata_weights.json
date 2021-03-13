@@ -1,0 +1,10 @@
+{
+    "model_name": "distilbert_128",
+    "build_from_scratch": false,
+    "batch_size": 8,
+    "epochs": 20,
+    "learning_rate": 1e-3,
+    "tokenizer": "distilbert-base-uncased",
+    "max_length": 128,
+    "load_weights_from_no_text": true
+}

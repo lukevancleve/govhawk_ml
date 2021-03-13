@@ -70,11 +70,12 @@ a['version_number'] = a[['id', 'bill_id', 'updated_at']].groupby('bill_id').cumc
 a[['id', 'bill_id', 'version_number', 'updated_at']].sort_values('bill_id').tail(n=100)
 
 
-ml_data = a[['id', 'version_number', 'bill_id']].merge(bills[['id', 'signed', 'session_id', 'chamber_id']].rename(columns={'id':"bill_id"}), on='bill_id')
+ml_data = a[['id', 'version_number', 'bill_id']].merge(bills[['id', 'signed', 'passed_upper', 'passed_lower', 'session_id', 'chamber_id']].rename(columns={'id':"bill_id"}), on='bill_id')
 ml_data = ml_data.merge(pl[['session_id', 'chamber_id', 'partisan_lean']], on=['session_id', 'chamber_id'])
 ml_data = ml_data.fillna(0)
 ml_data['sc_id'] = ml_data['session_id'].astype(str) + "-" + ml_data['chamber_id'].astype(str)
-ml_data = ml_data[['id', 'version_number', 'bill_id', 'signed', 'partisan_lean',  'sc_id']]
+ml_data['passed'] = ml_data['passed_lower']*(ml_data['chamber_id']==1) + ml_data['passed_upper']*(ml_data['chamber_id']==2)
+ml_data = ml_data[['id', 'version_number', 'bill_id', 'signed', 'passed', 'partisan_lean',  'sc_id']]
 s1 = ml_data[['bill_id', 'id']].groupby('bill_id').sample(1)
 ml_data = ml_data.merge(s1, on = ['id', 'bill_id'])
 ml_data.to_csv(DERIVED_DIR + 'ml_data.csv', index=False)

@@ -1,0 +1,9 @@
+{
+    "model_name": "bert_512",
+    "build_from_scratch": false,
+    "batch_size": 8,
+    "epochs": 20,
+    "learning_rate": 1e-3,
+    "tokenizer": "bert-base-uncased",
+    "max_length": 512
+}
