@@ -230,26 +230,43 @@ class deepLegisBert(BaseLegisModel):
 
     def build(self):
 
-        self.base_transformer_model = TFBertForSequenceClassification.from_pretrained("bert-base-uncased")
-        ids = tf.keras.Input((self.config['max_length']), dtype=tf.int32, name='input_ids')
+        # Handle the Meta Data
+        ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
         vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
-        cat = tf.keras.Input((self.config['n_sc_id_classes'], ), dtype=tf.float32, name='sc_id')
+        pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
+        cat = tf.keras.Input((self.config.n_sc_id_classes, ), dtype=tf.float32, name='sc_id')
+        meta = tf.concat([vn, pl, cat], axis=-1)
 
-        x = model.longformer(ids) # Get the main Layer
+        # Load the initial weights with the ones trained from the DL model without text
+        if self.config.load_weights_from_no_text:
+            #if 'no_text_dense_layer_initialization_path' in self.config:
+            print("Usinging pretrained weights from the no_text model! --------------------")
+            model_location = self.config.data_vol + "models/no_text/full_model.h5"
+            ntdl = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu', name="no_text_dense_layer",
+                                     kernel_initializer= noTextKernelInitializer(model_location=model_location), bias_initializer= noTextBiasInitializer(model_location=model_location))
+        else:
+            ntdl = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu', name="no_text_dense_layer")
+        meta = ntdl(meta)
+
+        # Handle the Transformer
+        self.base_transformer_model = TFBertForSequenceClassification.from_pretrained("bert-base-uncased")
+        x = self.base_transformer_model.bert(ids) # Get the main Layer
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
-        x = tf.concat([x, vn, cat], axis=-1)
-        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+
+        # Combine the two and run through another dense layer.
+        x = tf.concat([x, meta], axis=-1)
+        x = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu')(x)
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-        dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "sc_id": cat}, outputs=[x])
-
+        dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "partisan_lean": pl, "sc_id": cat}, outputs=[x])
 
         self.deep_legis_model = dl_model
 
+
 class deepLegisDistillBert(BaseLegisModel):
     """
-    DeepLegis model with BERT as the transformer, ALL metadata included.
+    DeepLegis model with DistillBERT as the transformer, ALL metadata included.
     """
     def __init__(self, config):
         super().__init__(config)

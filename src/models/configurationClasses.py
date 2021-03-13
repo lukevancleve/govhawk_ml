@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import datetime
+from transformers import BertTokenizer, DistilBertTokenizer
 from src.models.deeplegis import *
 
 class deepLegisConfig():
@@ -105,9 +106,9 @@ def _select_model_class(text):
     elif text == "distilbert_512":
         return deepLegisDistillBert  # Class, not and object
     elif text == "bert_128":
-        return deepLegisDistillBert  # Class, not and object
+        return deepLegisBert  # Class, not and object
     elif text == "bert_512":
-        return deepLegisDistillBert  # Class, not and object
+        return deepLegisBert  # Class, not and object
 
     else:
         raise "Invalid model:" + text
