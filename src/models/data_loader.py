@@ -11,7 +11,7 @@ from sklearn.preprocessing import LabelEncoder
 import datetime
 
 
-def createDeepLegisDataFrame(config, reduce_by_factor=None):
+def createDeepLegisDataFrame(config, reduce_by_factor=None, random_state=1):
         """
         Create the full dataset from the preprepared ml_data.csv
         """
@@ -26,7 +26,7 @@ def createDeepLegisDataFrame(config, reduce_by_factor=None):
         df['sc_id_cat'] = sc_id_encoder.fit_transform(df['sc_id'])    
         print(f"Original number of examples: {len(df)}")
         if reduce_by_factor is not None:
-            df = df.sample(n=int(len(df)/reduce_by_factor)) 
+            df = df.sample(n=int(len(df)/reduce_by_factor), random_state=random_state) 
             print(f"Reduced number of examples:  {len(df)}")
 
         # Skip the text if we're not using it.
