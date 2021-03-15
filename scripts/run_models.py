@@ -13,7 +13,7 @@ models_to_test = [
     "bert_128.json",
     "bert_512.json"
 ]
-models_to_test = ["distilbert_128_metadata_weights.json"]
+#models_to_test = ["distilbert_128_metadata_weights.json"]
 
 def run_model(json_file):
     """

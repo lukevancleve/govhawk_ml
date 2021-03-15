@@ -16,10 +16,11 @@ pl = pd.read_csv(DERIVED_DIR + "/partisan_lean.csv", sep=",", encoding="latin1",
 if 'DATA_VOL' not in os.environ:
     # Manually set:
     #raise("DATA_VOL should be set in the Docker image.")
-    DATA_VOL = '/home/luke/datavol/'
+    DATA_VOL = '/datavol/'
 else:
     DATA_VOL = os.environ['DATA_VOL']
-    
+
+print(bv.head())
 version_exists = []
 for i in bv['id']:
 
