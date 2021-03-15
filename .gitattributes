@@ -10,3 +10,4 @@ references/external/person.csv filter=lfs diff=lfs merge=lfs -text
 references/external/session.csv filter=lfs diff=lfs merge=lfs -text
 references/external/bill.csv filter=lfs diff=lfs merge=lfs -text
 references/external/bill_legislator_vote.csv filter=lfs diff=lfs merge=lfs -text
+data/clean.tar.gz filter=lfs diff=lfs merge=lfs -text
