@@ -15,9 +15,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/app/"
 
 COPY requirements.txt /app/requirements.txt
 COPY Makefile /app/Makefile
-RUN cd /app && make && rm -rf /app/*
+RUN cd /app && pip install -r requirements.txt
 
-#CMD ["/bin/bash"]
 CMD ["jupyter", "notebook", "--port=8888", "--no-browser", "--ip=0.0.0.0", "--allow-root"]
-#EXPOSE 5000
-#ENTRYPOINT ["python", "/app/src/flask_code.py"]
+

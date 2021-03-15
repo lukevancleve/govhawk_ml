@@ -1,6 +1,6 @@
 services:
   local:
-    image: dlbox
+    image: prod
     ports:
       - "5000:8888"
     volumes: 
@@ -9,3 +9,4 @@ services:
     runtime: nvidia
     environment: 
       - DATA_VOL=/data/
+      - PYTHONPATH=/app/
