@@ -2,7 +2,7 @@ import sys
 import os
 import json
 import datetime
-from transformers import BertTokenizer, DistilBertTokenizer
+from transformers import BertTokenizer, DistilBertTokenizer, BertTokenizerFast
 from src.models.deeplegis import *
 
 class deepLegisConfig():
@@ -51,8 +51,9 @@ class deepLegisConfig():
 
         # Tokenizer
         if 'tokenizer' in d:
-            self.tokenizer = self._make_tokenizer(d['tokenizer'])
             self.max_length = d['max_length']
+            self.tokenizer = self._make_tokenizer(d['tokenizer'])
+
 
         # Weights experiment:
         if 'load_weights_from_no_text' in d:
@@ -81,7 +82,7 @@ class deepLegisConfig():
         self.log_dir = self.output_root + "logs/fit/" + self.model_name+"_"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-    _valid_tokenizers_strings = [ "distilbert-base-uncased", "bert-base-uncased"] 
+    _valid_tokenizers_strings = [ "distilbert-base-uncased", "bert-base-uncased", 'fast-bert-base-uncased'] 
 
     def _make_tokenizer(self, text):
         """
@@ -95,6 +96,8 @@ class deepLegisConfig():
             return DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
         if text == "bert-base-uncased":
             return BertTokenizer.from_pretrained('bert-base-uncased')
+        if text == "fast-bert-base-uncased":
+            return BertTokenizerFast.from_pretrained('bert-base-uncased', model_max_length=self.max_length)
         else:
             raise "Previous test should never let you get here."
 

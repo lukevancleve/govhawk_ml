@@ -21,7 +21,8 @@ class TestModels(unittest.TestCase):
 
         print("Testing all models!")
         models_to_test = os.listdir('src/configs/')
-        for file in models_to_test[:1]:
+        models_to_test = ['bert_128_fast.json', 'bert_128.json', ]
+        for file in models_to_test[:2]:
             self.individual_model_test(file)
 
     def test_single_model(self):
@@ -30,7 +31,7 @@ class TestModels(unittest.TestCase):
         one epoch with 1/1000th of the dataset.
         """
 
-        self.individual_model_test('distilbert_128.json')
+        #self.individual_model_test('distilbert_128.json')
 
     def individual_model_test(self, json_file):
         """
@@ -45,7 +46,7 @@ class TestModels(unittest.TestCase):
         deep_legis_model = config.model_class(config)  
 
         print("Import and process the dataset")
-        deep_legis_model.load_data(reduce_by_factor=1000)
+        deep_legis_model.load_data(reduce_by_factor=100)
 
         pp.pprint(vars(config))
 
@@ -56,13 +57,13 @@ class TestModels(unittest.TestCase):
         print("Train the model!")
         deep_legis_model.train()
 
-        print("Evaluation on the Test set:")
-        deep_legis_model.evaluate()
+        #print("Evaluation on the Test set:")
+        #deep_legis_model.evaluate()
 
-        deep_legis_model.deep_legis_model.save(config.model_location)
+        #deep_legis_model.deep_legis_model.save(config.model_location)
 
-        print("Cache predictions on all observations for later use.")
-        deep_legis_model.full_dataset_prediction()
+        #print("Cache predictions on all observations for later use.")
+        #deep_legis_model.full_dataset_prediction()
 
 
 

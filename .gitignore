@@ -92,3 +92,4 @@ target/
 logs/*
 *.aux
 *fls
+data/clean/*

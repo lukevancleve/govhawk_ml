@@ -83,7 +83,7 @@ class BaseLegisModel(ABC):
 
         df_preds.to_csv(prediction_file, index=False)
 
-        return self.deep_legis_model.predict(self.full_batches)
+        return preds
 
 class deepLegisNoText(BaseLegisModel):
     """
@@ -197,21 +197,28 @@ class deepLegisRevCat(BaseLegisModel):
             legislationDatasetRevCat(self.config).create_batch_stream(self.df)
 
     def build(self):
-
-        self.base_transformer_model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
-
-        ids = tf.keras.Input((self.config['max_length']), dtype=tf.int32, name='input_ids')
+        # Handle the Meta Data
+        ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
         vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
-        cat = tf.keras.Input((self.config['n_sc_id_classes'], ), dtype=tf.float32, name='sc_id')
+        cat = tf.keras.Input((self.config.n_sc_id_classes, ), dtype=tf.float32, name='sc_id')
+        meta = tf.concat([vn, cat], axis=-1)
+        ntdl = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu', name="no_text_dense_layer")
+        meta = ntdl(meta)
 
-        x = model.longformer(ids) # Get the main Layer
+        # Handle the Transformer
+        self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
+        x = self.base_transformer_model.distilbert(ids) # Get the main Layer
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
-        x = tf.concat([x, vn, cat], axis=-1)
-        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
+
+        # Combine the two and run through another dense layer.
+        x = tf.concat([x, meta], axis=-1)
+        x = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu')(x)
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-        dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "sc_id": cat}, outputs=[x])
+        dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn,  "sc_id": cat}, outputs=[x])
+
+        self.deep_legis_model = dl_model
 
 
         self.deep_legis_model = dl_model

@@ -107,6 +107,12 @@ class legislationDataset(ABC):
              .prefetch(tf.data.experimental.AUTOTUNE) 
              )
 
+        # train_data = (train_data1.map(self.to_feature_map)
+        #      .shuffle(250)
+        #      .batch(self.config.batch_size)
+        #      .prefetch(tf.data.experimental.AUTOTUNE) 
+        #      )
+
         val_data = (val_data1.map(self.to_feature_map, \
               num_parallel_calls=tf.data.experimental.AUTOTUNE)
              .batch(self.config.batch_size)

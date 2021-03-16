@@ -78,6 +78,8 @@ carry over from one to the next. Texas meets every two years. In all there are 1
 
 \subsection{Transformers}
 
+% http://jalammar.github.io/illustrated-transformer/
+
 Transformers revolutionized natural language processing with the invention of the attention mechanism \cite{attentionisallyouneed}.
 
 \begin{equation}
@@ -105,22 +107,32 @@ Huggingface library \cite{huggingface}
 \includegraphics[width=150mm]{figures/network_architecture.jpg}
 %\caption{Figure X - Network Architecture}
 
+
+\begin{itemize}
+  \item Transformers
+  \item Proposed architecture
+  \item DistilBert & Bert  -- Encoder only models
+  \item 
+\end{itemize}
+
+
+
 \section{Results}
 
 \begin{tabular}{ l  c  c  c}
  Model & AUC & Precision & Recall  \\
  \hline
  \textbf{Metadata Only} & & & \\
-\hspace{3mm}Logistic Regression & 0.871 & 0.69 & 0.33 \\
-\hspace{3mm}Catboost  & 0.888 & 0.68 & 0.43 \\
-\hspace{3mm} Dense Neural Network & 0.883 &  0.69 & 0.39 \\
+\hspace{3mm}Logistic Regression & 0.869 & 0.73 & 0.37 \\
+\hspace{3mm}Catboost  & 0.885 & 0.73 & 0.45 \\
+\hspace{3mm} Dense Neural Network & 0.886 &  0.75 & 0.44 \\
 \hline
 \textbf{BoW Text Models} & & & \\
-\hspace{3mm}Logistic Regression with LDA & 0.883 & 0.71 & 0.35 \\
-\hspace{3mm}CatBoost with LDA & 0.912 & 0.74 & 0.55 \\ 
+\hspace{3mm}Logistic Regression with LDA & 0.880 & 0.73 & 0.42 \\
+\hspace{3mm}CatBoost with LDA & 0.914 & 0.77 & 0.56 \\ 
 \hline
 \textbf{Transformer with Metadata combinations} & & & \\
-\hspace{3mm}Only Metadata & 0.883 & 0.69 & 0.39 \\
+\hspace{3mm}Only Metadata & 0.886 &  0.75 & 0.44 \\
 \hspace{3mm}Text Only & & & \\
 \hspace{3mm}Text, Revision Number, Legislature & & & \\
 \hspace{3mm}Text and Partisan Lean & & & \\
