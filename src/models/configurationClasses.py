@@ -66,7 +66,8 @@ class deepLegisConfig():
 
         
         if 'DATA_VOL' not in os.environ:
-            raise "Please set the DATA_VOL as an environmental variable."
+            self.data_vol = "/home/luke/ml_govhawk_prod_output/"
+            #raise "Please set the DATA_VOL as an environmental variable."
         else:
             self.data_vol = os.environ['DATA_VOL']
 

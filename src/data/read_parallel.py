@@ -26,6 +26,6 @@ def read_parallel_local(ids: List[int], dir: str, processes=20) -> List[str]:
     tp.terminate()
     tp.close()
 
-    print(f"Took {(time.time()-start_time)/60.0} min to open {len(ids)} files with {processes} processes." )
+    print(f"Took {(time.time()-start_time)/60.0} min ({time.time()-start_time} sec)to open {len(ids)} files with {processes} processes." )
 
     return docs

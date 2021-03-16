@@ -9,7 +9,8 @@ import os
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 import datetime
-
+import time
+from pandarallel import pandarallel
 
 def createDeepLegisDataFrame(config, reduce_by_factor=None, random_state=1):
         """
@@ -40,7 +41,20 @@ def createDeepLegisDataFrame(config, reduce_by_factor=None, random_state=1):
             if sum(na_text_rows) > 0:
                 print(f"WARNING! Removing {sum(na_text_rows)} rows becase the text value is None.")
                 df = df[~na_text_rows]
-                
+
+            # Use all the CPU cores to tokenize the text.
+            pandarallel.initialize()
+            tic = time.perf_counter()
+
+            # Used to pass back an element of the dict
+            def tokenizer_wrapper(text):
+                d = config.tokenizer(text, truncation=True, padding='max_length', max_length=config.max_length)
+                return d['input_ids']
+
+            df['tokens'] = df.text.parallel_apply( tokenizer_wrapper)
+            toc = time.perf_counter()
+            print(f"Tokenized in {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
+
         df = df.reset_index(drop=True)
         return df, sc_id_encoder
 
@@ -138,17 +152,14 @@ class legislationDatasetPartisanLean(legislationDataset):
     def __init__(self, config):
         super().__init__(config)
 
-    def to_feature(self, text, label, partisan_lean):
+    def to_feature(self, tokens, label, partisan_lean):
   
-        output = self.config.tokenizer(text.numpy().decode('ascii'), return_tensors="tf", \
-            truncation=True, padding='max_length', max_length=self.config.max_length)
-    
-        return (tf.squeeze(output['input_ids'],0), tf.cast(label, 'int32'), \
+        return (tf.cast(tokens, 'int32'), tf.cast(label, 'int32'), \
                 tf.cast(partisan_lean, 'float32'))
 
-    def to_feature_map(self, text, label, partisan_lean):
+    def to_feature_map(self, tokens, label, partisan_lean):
         input_ids, label_id, partisan_lean  \
-           = tf.py_function(self.to_feature, [text, label, partisan_lean], \
+           = tf.py_function(self.to_feature, [tokens, label, partisan_lean], \
                 Tout = [tf.int32, tf.int32, tf.float32])
     
         input_ids.set_shape([self.config.max_length])
@@ -164,7 +175,7 @@ class legislationDatasetPartisanLean(legislationDataset):
 
     def select_vars(self, df):
 
-        return tf.data.Dataset.from_tensor_slices((df['text'].values, 
+        return tf.data.Dataset.from_tensor_slices((df['tokens'].values, 
                                                    df['passed'].values, 
                                                    df['partisan_lean'].values))
 
@@ -173,15 +184,12 @@ class legislationDatasetText(legislationDataset):
     def __init__(self, config):
         super().__init__(config)
     
-    def to_feature(self, text, label):
+    def to_feature(self, tokens, label):
   
-        output = self.config.tokenizer(text.numpy().decode('ascii'), return_tensors="tf", \
-            truncation=True, padding='max_length', max_length=self.config.max_length)
-    
-        return (tf.squeeze(output['input_ids'],0), tf.cast(label, 'int32'))
+        return (tf.cast(tokens, 'int32'), tf.cast(label, 'int32'))
 
-    def to_feature_map(self, text, label):
-        input_ids, label_id = tf.py_function(self.to_feature, [text, label], \
+    def to_feature_map(self, tokens, label):
+        input_ids, label_id = tf.py_function(self.to_feature, [tokens, label], \
             Tout = [tf.int32, tf.int32])
     
         input_ids.set_shape([self.config.max_length])
@@ -195,28 +203,25 @@ class legislationDatasetText(legislationDataset):
 
     def select_vars(self, df):
 
-        return tf.data.Dataset.from_tensor_slices((df['text'].values, df['passed'].values))
+        return tf.data.Dataset.from_tensor_slices((df['tokens'].values, df['passed'].values))
 
 class legislationDatasetAll(legislationDataset):
 
     def __init__(self, config):
         super().__init__(config)
 
-    def to_feature(self, text, label, partisan_lean, version_number):
+    def to_feature(self, tokens, label, partisan_lean, version_number):
   
-        output = self.config.tokenizer(text.numpy().decode('ascii'), return_tensors="tf", \
-             truncation=True, padding='max_length', max_length=self.config.max_length)
-    
-        return (tf.squeeze(output['input_ids'],0), tf.cast(label, 'int32'), \
+        return (tf.cast(tokens, 'int32'), tf.cast(label, 'int32'), \
                tf.cast(partisan_lean, 'float32'), tf.cast(version_number, 'float32'))
 
     def sc_one_hot(self, sc_id):
 
         return tf.one_hot(sc_id, self.config.n_sc_id_classes, dtype='float32')
 
-    def to_feature_map(self, text, label, partisan_lean, version_number, sc_id):
+    def to_feature_map(self, tokens, label, partisan_lean, version_number, sc_id):
         input_ids, label_id, partisan_lean, version_number  \
-           = tf.py_function(self.to_feature, [text, label, partisan_lean, version_number], \
+           = tf.py_function(self.to_feature, [tokens, label, partisan_lean, version_number], \
                Tout = [tf.int32, tf.int32, tf.float32, tf.float32])
     
         sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
@@ -238,7 +243,7 @@ class legislationDatasetAll(legislationDataset):
 
     def select_vars(self, df):
 
-        return tf.data.Dataset.from_tensor_slices((df['text'].values, 
+        return tf.data.Dataset.from_tensor_slices((df['tokens'].to_list(), 
                                                    df['passed'].values, 
                                                    df['partisan_lean'].values, 
                                                    df['version_number'].values, 
@@ -249,22 +254,18 @@ class legislationDatasetRevCat(legislationDataset):
     def __init__(self, config):
         super().__init__(config)
 
-    def to_feature(self, text, label,  version_number):
+    def to_feature(self, tokens, label,  version_number):
   
-        output = self.config.tokenizer(text.numpy().decode('ascii'), \
-            return_tensors="tf", truncation=True, padding='max_length', \
-            max_length=self.config.max_length)
-    
-        return (tf.squeeze(output['input_ids'],0), tf.cast(label, 'int32'),  \
+        return (tf.cast(tokens, 'int32'), tf.cast(label, 'int32'),  \
                 tf.cast(version_number, 'float32'))
 
     def sc_one_hot(self, sc_id):
 
         return tf.one_hot(sc_id, self.config.n_sc_id_classes, dtype='float32')
 
-    def to_feature_map(self, text, label,  version_number, sc_id):
+    def to_feature_map(self, tokens, label,  version_number, sc_id):
         input_ids, label_id,  version_number  \
-           = tf.py_function(self.to_feature, [text, label, version_number], \
+           = tf.py_function(self.to_feature, [tokens, label, version_number], \
                Tout = [tf.int32, tf.int32, tf.float32])
     
         sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
@@ -284,7 +285,7 @@ class legislationDatasetRevCat(legislationDataset):
 
     def select_vars(self, df):
 
-        return tf.data.Dataset.from_tensor_slices((df['text'].values, 
+        return tf.data.Dataset.from_tensor_slices((df['tokens'].values, 
                                                    df['passed'].values, 
                                                    df['version_number'].values, 
                                                    df['sc_id_cat'].values))
