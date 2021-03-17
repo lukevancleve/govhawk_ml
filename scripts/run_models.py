@@ -5,15 +5,16 @@ from src.models.data_loader import *
 from src.models.configurationClasses import  deepLegisConfig
 pp = pprint.PrettyPrinter() # for the config
 
-models_to_test = [
-    "no_text.json",
+models_to_run = [
+#    "no_text.json",
     "distilbert_128.json",
-    "distilbert_512.json",
+    "distilbert_128_rev_cat.json"
     "distilbert_128_metadata_weights.json",
     "bert_128.json",
+    "distilbert_512.json",
     "bert_512.json"
 ]
-#models_to_test = ["distilbert_128_metadata_weights.json"]
+#models_to_run = ["distilbert_128_metadata_weights.json"]
 
 def run_model(json_file):
     """
@@ -37,13 +38,14 @@ def run_model(json_file):
     print("Train the model!")
     deep_legis_model.train()
 
+    print("Save the model.")
+    deep_legis_model.deep_legis_model.save(config.model_location)
+
     print("Evaluation on the Test set:")
     deep_legis_model.evaluate()
-
-    deep_legis_model.deep_legis_model.save(config.model_location)
 
     print("Cache predictions on all observations for later use.")
     deep_legis_model.full_dataset_prediction()
 
-for model in models_to_test:
+for model in models_to_run:
     run_model(model)

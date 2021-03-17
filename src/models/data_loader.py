@@ -11,51 +11,74 @@ from sklearn.preprocessing import LabelEncoder
 import datetime
 import time
 from pandarallel import pandarallel
+import pickle
 
-def createDeepLegisDataFrame(config, reduce_by_factor=None, random_state=1):
+def createDeepLegisDataFrame(config, read_cached=True, reduce_by_factor=None, random_state=1):
         """
         Create the full dataset from the preprepared ml_data.csv
         """
 
-        # Pre-wrangled metadata
-        df = pd.read_csv(config.project_root + "references/derived/ml_data.csv", encoding="latin1", parse_dates=True)
-        df.id = df.id.astype(int)
+        if read_cached:
+            # Cached has the text already tokenized.
 
+            tic = time.perf_counter()
+            if config.max_length == 128:
+                pickle_file = config.datavol + "preprocessed_df_128.pkl"
+                with open(pickle_file) as f:
+                    df = pickle.load(f)
+                encoder = 
+            else:
+                raise "Invalid max_length for pickle file."
+            toc = time.perf_counter()
+            print(f"Loading pickle file ({}) took {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
+
+            print(f"Original number of examples: {len(df)}")
+            if reduce_by_factor is not None:
+                df = df.sample(n=int(len(df)/reduce_by_factor), random_state=random_state) 
+                print(f"Reduced number of examples:  {len(df)}")
+
+        else:
+
+            # Pre-wrangled metadata
+            df = pd.read_csv(config.project_root + "references/derived/ml_data.csv", encoding="latin1", parse_dates=True)
+            df.id = df.id.astype(int)
+
+            print(f"Original number of examples: {len(df)}")
+            if reduce_by_factor is not None:
+                df = df.sample(n=int(len(df)/reduce_by_factor), random_state=random_state) 
+                print(f"Reduced number of examples:  {len(df)}")
+
+            # Skip the text if we're not using it.
+            if config.tokenizer is not None:
+                clean_path = config.data_vol + "clean/"
+                if not os.path.exists(clean_path):
+                    raise 'No such directory: ' + clean_path
+                print(f"Loading {len(df)} text files")
+                df['text'] = read_parallel_local(df['id'], config.data_vol + "clean/")
+                na_text_rows = df.text.isna()
+                if sum(na_text_rows) > 0:
+                    print(f"WARNING! Removing {sum(na_text_rows)} rows becase the text value is None.")
+                    df = df[~na_text_rows]
+
+                # Use all the CPU cores to tokenize the text.
+                pandarallel.initialize()
+                tic = time.perf_counter()
+
+                # Used to pass back an element of the dict
+                def tokenizer_wrapper(text):
+                    d = config.tokenizer(text, truncation=True, padding='max_length', max_length=config.max_length)
+                    return d['input_ids']
+
+                df['tokens'] = df.text.parallel_apply( tokenizer_wrapper)
+                toc = time.perf_counter()
+                print(f"Tokenized in {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
+
+                df = df.reset_index(drop=True)
 
         # Encode all the labels before (potentially) reducing the dataset.
         sc_id_encoder = LabelEncoder()
         df['sc_id_cat'] = sc_id_encoder.fit_transform(df['sc_id'])    
-        print(f"Original number of examples: {len(df)}")
-        if reduce_by_factor is not None:
-            df = df.sample(n=int(len(df)/reduce_by_factor), random_state=random_state) 
-            print(f"Reduced number of examples:  {len(df)}")
 
-        # Skip the text if we're not using it.
-        if config.tokenizer is not None:
-            clean_path = config.data_vol + "clean/"
-            if not os.path.exists(clean_path):
-                raise 'No such directory: ' + clean_path
-            print(f"Loading {len(df)} text files")
-            df['text'] = read_parallel_local(df['id'], config.data_vol + "clean/")
-            na_text_rows = df.text.isna()
-            if sum(na_text_rows) > 0:
-                print(f"WARNING! Removing {sum(na_text_rows)} rows becase the text value is None.")
-                df = df[~na_text_rows]
-
-            # Use all the CPU cores to tokenize the text.
-            pandarallel.initialize()
-            tic = time.perf_counter()
-
-            # Used to pass back an element of the dict
-            def tokenizer_wrapper(text):
-                d = config.tokenizer(text, truncation=True, padding='max_length', max_length=config.max_length)
-                return d['input_ids']
-
-            df['tokens'] = df.text.parallel_apply( tokenizer_wrapper)
-            toc = time.perf_counter()
-            print(f"Tokenized in {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
-
-        df = df.reset_index(drop=True)
         return df, sc_id_encoder
 
 class legislationDataset(ABC):
@@ -120,12 +143,6 @@ class legislationDataset(ABC):
              .batch(self.config.batch_size)
              .prefetch(tf.data.experimental.AUTOTUNE) 
              )
-
-        # train_data = (train_data1.map(self.to_feature_map)
-        #      .shuffle(250)
-        #      .batch(self.config.batch_size)
-        #      .prefetch(tf.data.experimental.AUTOTUNE) 
-        #      )
 
         val_data = (val_data1.map(self.to_feature_map, \
               num_parallel_calls=tf.data.experimental.AUTOTUNE)

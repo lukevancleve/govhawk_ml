@@ -21,7 +21,7 @@ class TestModels(unittest.TestCase):
 
         print("Testing all models!")
         models_to_test = os.listdir('src/configs/')
-        models_to_test = ['bert_128_fast.json', 'bert_128.json', ]
+
         for file in models_to_test[:2]:
             self.individual_model_test(file)
 
@@ -31,7 +31,7 @@ class TestModels(unittest.TestCase):
         one epoch with 1/1000th of the dataset.
         """
 
-        #self.individual_model_test('distilbert_128.json')
+        self.individual_model_test('distilbert_128.json')
 
     def individual_model_test(self, json_file):
         """
@@ -57,13 +57,13 @@ class TestModels(unittest.TestCase):
         print("Train the model!")
         deep_legis_model.train()
 
-        #print("Evaluation on the Test set:")
-        #deep_legis_model.evaluate()
+        print("Evaluation on the Test set:")
+        deep_legis_model.evaluate()
 
-        #deep_legis_model.deep_legis_model.save(config.model_location)
+        deep_legis_model.deep_legis_model.save(config.model_location)
 
-        #print("Cache predictions on all observations for later use.")
-        #deep_legis_model.full_dataset_prediction()
+        print("Cache predictions on all observations for later use.")
+        deep_legis_model.full_dataset_prediction()
 
 
 

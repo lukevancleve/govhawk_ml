@@ -2,7 +2,7 @@
     "model_name": "distilbert_128_pl",
     "build_from_scratch": false,
     "batch_size": 8,
-    "epochs": 5,
+    "epochs": 10,
     "learning_rate": 1e-3,
     "tokenizer": "distilbert-base-uncased",
     "max_length": 128

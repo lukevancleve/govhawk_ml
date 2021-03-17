@@ -2,7 +2,7 @@
     "model_name": "no_text",
     "build_from_scratch": false,
     "batch_size": 128,
-    "epochs": 5,
+    "epochs": 10,
     "learning_rate": 1e-3
     
 }
