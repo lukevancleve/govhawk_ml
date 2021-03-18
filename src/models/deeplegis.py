@@ -93,10 +93,10 @@ class deepLegisNoText(BaseLegisModel):
     def __init__(self, config):
         super().__init__(config)
         
-    def process_specific_data(self):
+    def process_specific_data(self, testing=False):
       
         self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
-            legislationDatasetNoText(self.config).create_batch_stream(self.df)
+            legislationDatasetNoText(self.config).create_batch_stream(self.df, testing=testing)
 
     def build(self):
 
@@ -129,27 +129,12 @@ class deepLegisText(BaseLegisModel):
     def build(self):
         self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
-        vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
-        cat = tf.keras.Input((self.config.n_sc_id_classes, ), dtype=tf.float32, name='sc_id')
 
         x = self.base_transformer_model.distilbert(ids) # Get the main Layer
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
-        x = tf.concat([x, vn, cat], axis=-1)
+        x = tf.concat([x], axis=-1)
         x = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu')(x)
-        x = tf.keras.layers.Dropout(0.2)(x)
-        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
-        dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "sc_id": cat}, outputs=[x])
-
-        self.deep_legis_model = dl_model
-
-
-        self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
-        ids = tf.keras.Input((self.config.max_length), dtype=tf.int32, name='input_ids')
-        x = model.distilbert(ids) # Get the main Layer
-        x = x['last_hidden_state'][:,0,:]
-        x = tf.keras.layers.Dropout(0.2)(x)
-        x = tf.keras.layers.Dense(self.n_dense_layers, activation='relu')(x)
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         dl_model = tf.keras.Model(inputs={"input_ids":ids}, outputs=[x])
@@ -271,7 +256,7 @@ class deepLegisBert(BaseLegisModel):
         self.deep_legis_model = dl_model
 
 
-class deepLegisDistillBert(BaseLegisModel):
+class deepLegisDistilBert(BaseLegisModel):
     """
     DeepLegis model with DistillBERT as the transformer, ALL metadata included.
     """
@@ -306,6 +291,8 @@ class deepLegisDistillBert(BaseLegisModel):
         # Handle the Transformer
         self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         x = self.base_transformer_model.distilbert(ids) # Get the main Layer
+        hidden_state = x[0]
+        
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
 
@@ -317,6 +304,33 @@ class deepLegisDistillBert(BaseLegisModel):
         dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "partisan_lean": pl, "sc_id": cat}, outputs=[x])
 
         self.deep_legis_model = dl_model
+
+class deepLegisDistilBertFeatureExtractor(BaseLegisModel):
+    """
+    DeepLegis model with DistillBERT as the transformer, output is the hidden state.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
+    def process_specific_data(self):
+       
+        self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
+            legislationDatasetAll(self.config).create_batch_stream(self.df)
+
+    def build(self):
+
+        # Handle the Meta Data
+        ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
+        # Handle the Transformer
+        self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
+        x = self.base_transformer_model.distilbert(ids) # Get the main Layer
+        hidden_state = x[0][:,0,:]
+
+        dl_model = tf.keras.Model(inputs={"input_ids":ids,}, outputs=[hidden_state])
+
+        self.deep_legis_model = dl_model
+
+
 
 class noTextKernelInitializer(tf.keras.initializers.Initializer):
 

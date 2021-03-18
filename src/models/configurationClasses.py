@@ -49,9 +49,11 @@ class deepLegisConfig():
         _assign_required_element('epochs')
         _assign_required_element('learning_rate')
 
+
+        if 'max_length' in d:
+            self.max_length = d['max_length']
         # Tokenizer
         if 'tokenizer' in d:
-            self.max_length = d['max_length']
             self.tokenizer = self._make_tokenizer(d['tokenizer'])
 
 
@@ -97,8 +99,6 @@ class deepLegisConfig():
             return DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
         if text == "bert-base-uncased":
             return BertTokenizer.from_pretrained('bert-base-uncased')
-        if text == "fast-bert-base-uncased":
-            return BertTokenizerFast.from_pretrained('bert-base-uncased', model_max_length=self.max_length)
         else:
             raise "Previous test should never let you get here."
 
@@ -129,5 +129,10 @@ class deepLegisConfig():
         elif text == "bert_512":
             return deepLegisBert 
 
+    # Feature extractor:
+        elif text == "bert_feature_extractor_128":
+            return deepLegisDistilBertFeatureExtractor
+        elif text == "bert_feature_extractor_512":
+            return deepLegisDistilBertFeatureExtractor
         else:
             raise "Invalid model:" + text

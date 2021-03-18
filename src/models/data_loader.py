@@ -23,14 +23,15 @@ def createDeepLegisDataFrame(config, read_cached=True, reduce_by_factor=None, ra
 
             tic = time.perf_counter()
             if config.max_length == 128:
-                pickle_file = config.datavol + "preprocessed_df_128.pkl"
-                with open(pickle_file) as f:
-                    df = pickle.load(f)
-                encoder = 
+                pickle_file = config.data_vol + "preprocessed_df_128.pkl"
+                df = pd.read_pickle(pickle_file)
+            elif config.max_length == 512:
+                pickle_file = config.data_vol + "preprocessed_df_512.pkl"
+                df = pd.read_pickle(pickle_file)
             else:
                 raise "Invalid max_length for pickle file."
             toc = time.perf_counter()
-            print(f"Loading pickle file ({}) took {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
+            print(f"Loading pickle file ({pickle_file}) took {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
 
             print(f"Original number of examples: {len(df)}")
             if reduce_by_factor is not None:
@@ -84,10 +85,10 @@ def createDeepLegisDataFrame(config, read_cached=True, reduce_by_factor=None, ra
 class legislationDataset(ABC):
     """Abstract Class for data loading for all the DeepLegis variations"""
 
-    def __init__(self, config, testing=False):
+    def __init__(self, config):
 
         self.config = config
-        self.testing = testing
+        self.testing = False
         self.train_test_ratio = 0.91
         self.train_valid_ratio = 0.90
 
@@ -132,10 +133,9 @@ class legislationDataset(ABC):
         test_data1  = self.select_vars(df_test)
 
         if self.testing:
-            for text, label, pl in train_data1.take(1):
-                print(text)
-                print(label)
-                print(pl)
+            for elem in train_data1.take(1):
+                print(elem)
+    
 
         train_data = (train_data1.map(self.to_feature_map, \
               num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -220,7 +220,7 @@ class legislationDatasetText(legislationDataset):
 
     def select_vars(self, df):
 
-        return tf.data.Dataset.from_tensor_slices((df['tokens'].values, df['passed'].values))
+        return tf.data.Dataset.from_tensor_slices((df['tokens'].to_list(), df['passed'].values))
 
 class legislationDatasetAll(legislationDataset):
 

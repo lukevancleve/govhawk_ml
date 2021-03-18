@@ -112,7 +112,6 @@ Huggingface library \cite{huggingface}
   \item Transformers
   \item Proposed architecture
   \item DistilBert & Bert  -- Encoder only models
-  \item 
 \end{itemize}
 
 
@@ -137,6 +136,10 @@ Huggingface library \cite{huggingface}
 \hspace{3mm}Text, Revision Number, Legislature & & & \\
 \hspace{3mm}Text and Partisan Lean & & & \\
 \hspace{3mm}Text and All Metadata & \textbf{ 0.936 }& \textbf{0.81} & \textbf{0.55} \\
+\textbf{Transformer with Catboost} & & & \\
+\hspace{3mm}Bert 128 (1/10th dataset) & 0.895 & 0.74 & 0.45 \\
+\hspace{3mm}Bert 128 (full dataset) & 0.921 & 0.79 & 0.58 \\
+
 \hline
 \textbf{Different Transformers (all metadata)} & & & \\
 \hspace{3mm}DistilBert (128 tokens) (2 epochs fine-tune) & \textbf{ 0.936 }& \textbf{0.81} & \textbf{0.55} \\

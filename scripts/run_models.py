@@ -7,14 +7,14 @@ pp = pprint.PrettyPrinter() # for the config
 
 models_to_run = [
 #    "no_text.json",
-    "distilbert_128.json",
-    "distilbert_128_rev_cat.json"
+#    "distilbert_128.json",
+    "distilbert_128_rev_cat.json",
     "distilbert_128_metadata_weights.json",
     "bert_128.json",
     "distilbert_512.json",
     "bert_512.json"
 ]
-#models_to_run = ["distilbert_128_metadata_weights.json"]
+models_to_run = ["distilbert_128_text.json"]
 
 def run_model(json_file):
     """
