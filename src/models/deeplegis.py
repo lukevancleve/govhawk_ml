@@ -13,8 +13,11 @@ class BaseLegisModel(ABC):
         self.config = config
 
 
-    def load_data(self, project_root = None, reduce_by_factor=None):
+    def load_data(self, project_root = None, reduce_by_factor=None, only_full=False):
 
+        if only_full:
+            self.config.only_full=True
+            
         df, sc_id_encoder = createDeepLegisDataFrame(self.config, reduce_by_factor=reduce_by_factor)
         self.df = df
         self.config.n_sc_id_classes = len(sc_id_encoder.classes_)
@@ -330,6 +333,31 @@ class deepLegisDistilBertFeatureExtractor(BaseLegisModel):
 
         self.deep_legis_model = dl_model
 
+
+class deepLegisLongformerFeatureExtractor(BaseLegisModel):
+    """
+    DeepLegis model with DistillBERT as the transformer, output is the hidden state.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
+    def process_specific_data(self):
+       
+        self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
+            legislationDatasetAll(self.config).create_batch_stream(self.df)
+
+    def build(self):
+
+        # Handle the Meta Data
+        ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
+        # Handle the Transformer
+        self.base_transformer_model = TFLongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096")
+        x = self.base_transformer_model.longformer(ids) # Get the main Layer
+        hidden_state = x[0][:,0,:]
+
+        dl_model = tf.keras.Model(inputs={"input_ids":ids}, outputs=[hidden_state])
+
+        self.deep_legis_model = dl_model
 
 
 class noTextKernelInitializer(tf.keras.initializers.Initializer):

@@ -1,0 +1,7 @@
+{
+    "model_name": "longformer_feature_extractor_4096",
+    "batch_size": 1,
+    "epochs": 1,
+    "learning_rate": 1e-3,
+    "max_length":4096
+}

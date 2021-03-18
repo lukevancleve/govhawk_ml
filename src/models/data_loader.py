@@ -28,6 +28,9 @@ def createDeepLegisDataFrame(config, read_cached=True, reduce_by_factor=None, ra
             elif config.max_length == 512:
                 pickle_file = config.data_vol + "preprocessed_df_512.pkl"
                 df = pd.read_pickle(pickle_file)
+            elif config.max_length == 4096:
+                pickle_file = config.data_vol + "preprocessed_df_longformer_4096.pkl"
+                df = pd.read_pickle(pickle_file)
             else:
                 raise "Invalid max_length for pickle file."
             toc = time.perf_counter()
@@ -107,6 +110,16 @@ class legislationDataset(ABC):
     def create_batch_stream(self, df):
         
         print(df.head())
+
+        if self.config.only_full:
+            # For use when not expecting a pre-generated train/val/test split.
+            full_data1  = self.select_vars(df)
+            full_data = (full_data1.map(self.to_feature_map, \
+              num_parallel_calls=tf.data.experimental.AUTOTUNE)
+             .batch(self.config.batch_size)
+             .prefetch(tf.data.experimental.AUTOTUNE) 
+            )
+            return None, None, None, full_data, None
 
         df_train_full, df_test = train_test_split(df, train_size = \
             self.train_test_ratio, random_state = 1, stratify = df.passed.values)
@@ -348,3 +361,49 @@ class legislationDatasetNoText(legislationDataset):
                                                    df['version_number'].values, 
                                                    df['sc_id_cat'].values))
 
+class legislationDatasetAllWithAttention(legislationDataset):
+
+    def __init__(self, config):
+        super().__init__(config)
+
+    def to_feature(self, tokens, attention_mask, label, partisan_lean, version_number):
+  
+        return (tf.cast(tokens, 'int32'), tf.cast(attention_mask, 'int32'), tf.cast(label, 'int32'), \
+               tf.cast(partisan_lean, 'float32'), tf.cast(version_number, 'float32'))
+
+    def sc_one_hot(self, sc_id):
+
+        return tf.one_hot(sc_id, self.config.n_sc_id_classes, dtype='float32')
+
+    def to_feature_map(self, tokens, attention_mask, label, partisan_lean, version_number, sc_id):
+        input_ids, attention_mask, label_id, partisan_lean, version_number  \
+           = tf.py_function(self.to_feature, [tokens, attention_mask, label, partisan_lean, version_number], \
+               Tout = [tf.int32, tf.int32, tf.int32, tf.float32, tf.float32])
+    
+        sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
+
+        input_ids.set_shape([self.config.max_length])
+        attention_mask.set_shape([self.config.max_length])
+        label_id.set_shape([])
+        partisan_lean.set_shape([])
+        version_number.set_shape([])
+        sc_ids = sc_ids[0]
+    
+        x = {
+            'input_ids': input_ids,
+            'attention_mask': attention_mask,
+            'partisan_lean': partisan_lean,
+            'version_number': version_number,
+            'sc_id': sc_ids
+        }
+    
+        return (x, label_id)
+
+    def select_vars(self, df):
+
+        return tf.data.Dataset.from_tensor_slices((df['tokens'].to_list(),
+                                                   df['attention_mask'].to_list(), 
+                                                   df['passed'].values, 
+                                                   df['partisan_lean'].values, 
+                                                   df['version_number'].values, 
+                                                   df['sc_id_cat'].values))

@@ -64,45 +64,40 @@ carry over from one to the next. Texas meets every two years. In all there are 1
 
 \textbf{Signed} - A two class (0/1) variable indicating whether the legislation passed by both legislatures and the executive.
 
-
-\begin{itemize}
-  \item \textbf{TODOs}
-  \item Verify time frame for state legislatures for sessions ? to ?.
-  \item Example bill cleaning in an appendix.
-
-\end{itemize}
-
 \subsection{Baseline Models}
+
+Gradient Boosting Decision Trees (GBDTs) are powerful models for both classification and regression tasks. Often, for tasks where the representation does not
+need to be learned (neural networks), they are best in class. Catboost is a member of the GBDT family introduced in late 2018 that 
 
 \subsection{Bag of Words Models}
 
 \subsection{Transformers}
 
-% http://jalammar.github.io/illustrated-transformer/
+% % http://jalammar.github.io/illustrated-transformer/
 
-Transformers revolutionized natural language processing with the invention of the attention mechanism \cite{attentionisallyouneed}.
+% Transformers revolutionized natural language processing with the invention of the attention mechanism \cite{attentionisallyouneed}.
 
-\begin{equation}
-Attention(Q,K,V) = Softmax(\frac{QK^T}{\sqrt{d_k}}) * V
-\end{equation}
+% \begin{equation}
+% Attention(Q,K,V) = Softmax(\frac{QK^T}{\sqrt{d_k}}) * V
+% \end{equation}
 
-%For a single token embedding (a vector) the \textit{query (Q)} is a vector: Attention(vector, matrix, matrix) \rightarrow vector.
+% %For a single token embedding (a vector) the \textit{query (Q)} is a vector: Attention(vector, matrix, matrix) \rightarrow vector.
 
-Understanding a single token attention:
-\begin{equation}
-Attention(query, Key, Value) = Softmax(query * Key^T) * Value
-\end{equation}
+% Understanding a single token attention:
+% \begin{equation}
+% Attention(query, Key, Value) = Softmax(query * Key^T) * Value
+% \end{equation}
 
-All tokens can be processed simultaneously with efficient matrix operations.
-\begin{equation}
-Attention(Query, Key, Value) = Softmax(Query * Key^T) * Value 
-\end{equation}
+% All tokens can be processed simultaneously with efficient matrix operations.
+% \begin{equation}
+% Attention(Query, Key, Value) = Softmax(Query * Key^T) * Value 
+% \end{equation}
 
-%This operation is parallelizable and the algorithm will 
+% %This operation is parallelizable and the algorithm will 
 
 
 
-Huggingface library \cite{huggingface}
+% Huggingface library \cite{huggingface}
 
 \includegraphics[width=150mm]{figures/network_architecture.jpg}
 %\caption{Figure X - Network Architecture}
@@ -111,7 +106,7 @@ Huggingface library \cite{huggingface}
 \begin{itemize}
   \item Transformers
   \item Proposed architecture
-  \item DistilBert & Bert  -- Encoder only models
+  \item DistilBert Bert  -- Encoder only models
 \end{itemize}
 
 
@@ -119,7 +114,7 @@ Huggingface library \cite{huggingface}
 \section{Results}
 
 \begin{tabular}{ l  c  c  c}
- Model & AUC & Precision & Recall  \\
+  & AUC & Precision & Recall  \\
  \hline
  \textbf{Metadata Only} & & & \\
 \hspace{3mm}Logistic Regression & 0.869 & 0.73 & 0.37 \\
@@ -135,21 +130,17 @@ Huggingface library \cite{huggingface}
 \hspace{3mm}Text Only & & & \\
 \hspace{3mm}Text, Revision Number, Legislature & & & \\
 \hspace{3mm}Text and Partisan Lean & & & \\
-\hspace{3mm}Text and All Metadata & \textbf{ 0.936 }& \textbf{0.81} & \textbf{0.55} \\
+\hspace{3mm}Text and All Metadata & & & \\
+\hline
 \textbf{Transformer with Catboost} & & & \\
-\hspace{3mm}Bert 128 (1/10th dataset) & 0.895 & 0.74 & 0.45 \\
-\hspace{3mm}Bert 128 (full dataset) & 0.921 & 0.79 & 0.58 \\
+\hspace{3mm}DistilBert 128 & \textbf{0.921} & \textbf{0.79} & \textbf{0.58} \\
+\hspace{3mm}DistilBert 512 & 0.916 & 0.77 & 0.57 \\
+\hspace{3mm}Longformer 4096 &  &  &  \\
+\hline
+\textbf{Different Transformers (all metadata)} & & & \\
+\hspace{3mm}DistilBert (128 tokens) (in question) & & & \\
 
 \hline
-\textbf{Different Transformers (all metadata)} & & & \\
-\hspace{3mm}DistilBert (128 tokens) (2 epochs fine-tune) & \textbf{ 0.936 }& \textbf{0.81} & \textbf{0.55} \\
-\hspace{3mm}DistilBert (512 tokens)  &  & & \\
-\hspace{3mm}Bert (128 tokens) &  & & \\
-\hspace{3mm}Bert (512 tokens)  &  & & \\
-\hspace{3mm}DistilBert (512 tokens) &  & & \\
-\hline
-\textbf{Different Transformers (all metadata)} & & & \\
-\hspace{3mm}DistilBert (512 tokens) Feature Selector plus Catboost&  & & \\
 
 \end{tabular}
 

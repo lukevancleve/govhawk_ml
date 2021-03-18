@@ -28,6 +28,7 @@ class deepLegisConfig():
         self.model_class = None
         self.load_weights_from_no_text = False
         self.output_root = None
+        self.only_full= False
 
         json_file = 'src/configs/' + json_file
 
@@ -134,5 +135,7 @@ class deepLegisConfig():
             return deepLegisDistilBertFeatureExtractor
         elif text == "bert_feature_extractor_512":
             return deepLegisDistilBertFeatureExtractor
+        elif text == "longformer_feature_extractor_4096":
+            return deepLegisLongformerFeatureExtractor
         else:
             raise "Invalid model:" + text
