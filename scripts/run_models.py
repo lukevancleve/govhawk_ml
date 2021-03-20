@@ -14,7 +14,7 @@ models_to_run = [
     "distilbert_512.json",
     "bert_512.json"
 ]
-models_to_run = ["distilbert_128_text.json"]
+models_to_run = ["distilbert_128_signed.json"]
 
 def run_model(json_file):
     """

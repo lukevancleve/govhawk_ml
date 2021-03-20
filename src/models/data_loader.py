@@ -407,3 +407,47 @@ class legislationDatasetAllWithAttention(legislationDataset):
                                                    df['partisan_lean'].values, 
                                                    df['version_number'].values, 
                                                    df['sc_id_cat'].values))
+
+class legislationDatasetAllSigned(legislationDataset):
+
+    def __init__(self, config):
+        super().__init__(config)
+
+    def to_feature(self, tokens, label, partisan_lean, version_number):
+  
+        return (tf.cast(tokens, 'int32'), tf.cast(label, 'int32'), \
+               tf.cast(partisan_lean, 'float32'), tf.cast(version_number, 'float32'))
+
+    def sc_one_hot(self, sc_id):
+
+        return tf.one_hot(sc_id, self.config.n_sc_id_classes, dtype='float32')
+
+    def to_feature_map(self, tokens, label, partisan_lean, version_number, sc_id):
+        input_ids, label_id, partisan_lean, version_number  \
+           = tf.py_function(self.to_feature, [tokens, label, partisan_lean, version_number], \
+               Tout = [tf.int32, tf.int32, tf.float32, tf.float32])
+    
+        sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
+
+        input_ids.set_shape([self.config.max_length])
+        label_id.set_shape([])
+        partisan_lean.set_shape([])
+        version_number.set_shape([])
+        sc_ids = sc_ids[0]
+    
+        x = {
+            'input_ids': input_ids,
+            'partisan_lean': partisan_lean,
+            'version_number': version_number,
+            'sc_id': sc_ids
+        }
+    
+        return (x, label_id)
+
+    def select_vars(self, df):
+
+        return tf.data.Dataset.from_tensor_slices((df['tokens'].to_list(), 
+                                                   df['signed'].values, 
+                                                   df['partisan_lean'].values, 
+                                                   df['version_number'].values, 
+                                                   df['sc_id_cat'].values))

@@ -127,18 +127,18 @@ class deepLegisText(BaseLegisModel):
     def process_specific_data(self):
 
         self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
-            legislationDatasetText(self.config).create_batch_stream(self.df)
+            legislationDatasetAll(self.config).create_batch_stream(self.df)
 
     def build(self):
         self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
 
         x = self.base_transformer_model.distilbert(ids) # Get the main Layer
-        x = x['last_hidden_state'][:,0,:]
-        x = tf.keras.layers.Dropout(0.2)(x)
-        x = tf.concat([x], axis=-1)
-        x = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu')(x)
-        x = tf.keras.layers.Dropout(0.2)(x)
+        x = x[0][:,0,:]
+        # x = tf.keras.layers.Dropout(0.2)(x)
+        # x = tf.concat([x], axis=-1)
+        # x = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu')(x)
+        # x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         dl_model = tf.keras.Model(inputs={"input_ids":ids}, outputs=[x])
 
@@ -325,8 +325,8 @@ class deepLegisDistilBertFeatureExtractor(BaseLegisModel):
         # Handle the Meta Data
         ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
         # Handle the Transformer
-        self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
-        x = self.base_transformer_model.distilbert(ids) # Get the main Layer
+        self.base_transformer_model = TFBertForSequenceClassification.from_pretrained("bert-base-uncased")
+        x = self.base_transformer_model.bert(ids) # Get the main Layer
         hidden_state = x[0][:,0,:]
 
         dl_model = tf.keras.Model(inputs={"input_ids":ids,}, outputs=[hidden_state])
@@ -359,6 +359,100 @@ class deepLegisLongformerFeatureExtractor(BaseLegisModel):
 
         self.deep_legis_model = dl_model
 
+
+class deepLegisDistilBertTextFeatureExtractor(BaseLegisModel):
+    """
+    DeepLegis model with DistillBERT as the transformer, output is the hidden state.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
+    def process_specific_data(self):
+       
+        self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
+            legislationDatasetAll(self.config).create_batch_stream(self.df)
+
+    def build(self):
+
+        text_only_model_location = self.config.output_root + "models/distilbert_128_text/full_model.h5"
+        cached_model = tf.keras.models.load_model(text_only_model_location)
+           
+        # Handle the Meta Data
+        ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
+        # Handle the Transformer
+        #self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
+        x = cached_model.layers[1](ids) # Get the main Layer
+        hidden_state = x[0][:,0,:]
+
+        dl_model = tf.keras.Model(inputs={"input_ids":ids,}, outputs=[hidden_state])
+
+        self.deep_legis_model = dl_model
+
+
+class deepLegisDistilBertSigned(BaseLegisModel):
+    """
+    DeepLegis model with DistillBERT as the transformer, ALL metadata included.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        
+    def process_specific_data(self):
+       
+        self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
+            legislationDatasetAllSigned(self.config).create_batch_stream(self.df)
+
+    def build(self):
+
+        # Handle the Meta Data
+        ids = tf.keras.Input((self.config.max_length, ), dtype=tf.int32, name='input_ids')
+        vn = tf.keras.Input((1, ), dtype=tf.float32, name='version_number')
+        pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
+        cat = tf.keras.Input((self.config.n_sc_id_classes, ), dtype=tf.float32, name='sc_id')
+        meta = tf.concat([vn, pl, cat], axis=-1)
+
+        # Load the initial weights with the ones trained from the DL model without text
+        if self.config.load_weights_from_no_text:
+            #if 'no_text_dense_layer_initialization_path' in self.config:
+            print("Usinging pretrained weights from the no_text model! --------------------")
+            model_location = self.config.data_vol + "models/no_text/full_model.h5"
+            ntdl = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu', name="no_text_dense_layer",
+                                     kernel_initializer= noTextKernelInitializer(model_location=model_location), bias_initializer= noTextBiasInitializer(model_location=model_location))
+        else:
+            ntdl = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu', name="no_text_dense_layer")
+        meta = ntdl(meta)
+
+        # Handle the Transformer
+        self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
+        x = self.base_transformer_model.distilbert(ids) # Get the main Layer
+        hidden_state = x[0]
+        
+        x = x['last_hidden_state'][:,0,:]
+        x = tf.keras.layers.Dropout(0.2)(x)
+
+        # Combine the two and run through another dense layer.
+        x = tf.concat([x, meta], axis=-1)
+        x = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu')(x)
+        x = tf.keras.layers.Dropout(0.2)(x)
+        x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+        dl_model = tf.keras.Model(inputs={"input_ids":ids, "version_number": vn, "partisan_lean": pl, "sc_id": cat}, outputs=[x])
+
+        self.deep_legis_model = dl_model
+
+    def full_dataset_prediction(self):
+        """Overloaded to use a different label"""
+
+        preds = self.deep_legis_model.predict(self.full_batches)
+        df_preds = self.df[['id', 'signed']]
+        df_preds['preds'] = preds
+
+        prediction_file = self.config.data_vol + "models/" + self.config.model_name + "/predicions.csv"
+        print("Savinging predictions to: " + prediction_file)
+
+        df_preds = df_preds.merge(self.split_data, on = 'id')
+
+        df_preds.to_csv(prediction_file, index=False)
+
+        return preds
 
 class noTextKernelInitializer(tf.keras.initializers.Initializer):
 

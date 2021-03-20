@@ -114,7 +114,7 @@ class deepLegisConfig():
 
     # Ablation analysis models
         elif text == "distilbert_128":
-            return deepLegisDistillBert  
+            return deepLegisDistilBert  
         elif text == "distilbert_128_rev_cat":
             return deepLegisRevCat
         elif text == "distilbert_128_text":
@@ -124,11 +124,14 @@ class deepLegisConfig():
 
     # Different Transformer Architectures:
         elif text == "distilbert_512":
-            return deepLegisDistillBert 
+            return deepLegisDistilBert 
         elif text == "bert_128":
             return deepLegisBert  
         elif text == "bert_512":
             return deepLegisBert 
+
+        elif text == "distilbert_128_signed":
+            return deepLegisDistilBertSigned
 
     # Feature extractor:
         elif text == "bert_feature_extractor_128":
@@ -137,5 +140,7 @@ class deepLegisConfig():
             return deepLegisDistilBertFeatureExtractor
         elif text == "longformer_feature_extractor_4096":
             return deepLegisLongformerFeatureExtractor
+        elif text == "bert_feature_extractor_text":
+            return deepLegisDistilBertTextFeatureExtractor
         else:
             raise "Invalid model:" + text
