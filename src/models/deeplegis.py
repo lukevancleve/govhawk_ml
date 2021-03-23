@@ -11,17 +11,24 @@ class BaseLegisModel(ABC):
     """Abstract Model class that is inherited to all models"""
     def __init__(self, config):
         self.config = config
+        self.deep_legis_model = None
 
+    def batch_df(self, df, n_sc_id_classes=134, only_full=True):
+
+        self.config.only_full=only_full
+        self.df = df
+        self.config.n_sc_id_classes = n_sc_id_classes
+        self.process_specific_data()
 
     def load_data(self, project_root = None, reduce_by_factor=None, only_full=False):
 
-        if only_full:
-            self.config.only_full=True
+        
+        self.config.only_full=only_full
             
         df, sc_id_encoder = createDeepLegisDataFrame(self.config, reduce_by_factor=reduce_by_factor)
         self.df = df
         self.config.n_sc_id_classes = len(sc_id_encoder.classes_)
-        self.config.label_endocer = sc_id_encoder
+        self.config.label_encoder = sc_id_encoder
 
         # Create the specific full,train,val,test streams for this model
         self.process_specific_data()

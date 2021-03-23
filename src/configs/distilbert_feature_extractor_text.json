@@ -1,0 +1,7 @@
+{
+    "model_name": "bert_feature_extractor_text",
+    "batch_size": 16,
+    "epochs": 2,
+    "learning_rate": 1e-3,
+    "max_length": 128
+}

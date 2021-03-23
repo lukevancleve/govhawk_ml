@@ -14,11 +14,10 @@ models_to_run = [
     "distilbert_512.json",
     "bert_512.json"
 ]
-models_to_run = ["distilbert_128_signed.json"]
+models_to_run = ["distilbert_128.json"]
 
 def run_model(json_file):
     """
-    Run every model with 1000 times less data and for one epoch
     """
 
     config = deepLegisConfig(json_file)

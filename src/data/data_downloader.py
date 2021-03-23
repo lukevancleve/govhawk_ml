@@ -91,7 +91,6 @@ class data_downloader():
         if issue != -1:
             return(None)
 
-        #
         start_anchors = ["- FullText", "DELAWARE STATE SENATE", "STATE OF NEW HAMPSHIRE",
         "Be it enacted by the General Assembly of the state of Missouri, as follows:",
         "(Text matches printed bills. Document has been reformatted to meet World Wide Web specifications."]
