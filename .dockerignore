@@ -1,0 +1,5 @@
+.git
+.env
+notebooks/bow_models
+nodebooks/prod_model.joblib
+data/*
