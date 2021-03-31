@@ -4,6 +4,7 @@ import os
 import pandas as pd
 from src.models.predict_model import make_predictions
 
+
 if __name__ == '__main__':
     # Get the service resource
     sqs = boto3.resource('sqs', region_name='us-east-1')
