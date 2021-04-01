@@ -14,8 +14,9 @@ WORKDIR /app
 ENV PYTHONPATH "${PYTHONPATH}:/app/"
 
 COPY requirements.txt /app/requirements.txt
-COPY Makefile /app/Makefile
+#COPY Makefile /app/Makefile
 RUN cd /app && pip install -r requirements.txt
+RUN pip install awscli --upgrade --user
 
 CMD ["jupyter", "notebook", "--port=8888", "--no-browser", "--ip=0.0.0.0", "--allow-root"]
 

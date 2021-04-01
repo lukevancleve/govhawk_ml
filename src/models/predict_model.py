@@ -11,7 +11,7 @@ import pandas as pd
 
 def make_predictions_from_sqs(df):
     """
-    Take the inputs from sqs that need to be predicted and do:
+    Take the inputs from the df that need to be predicted and do:
     1. Massage into form the transformer want
     2. Take the output from the transformer and concat with the other metadata
     3. Run this output through catboost
@@ -42,6 +42,7 @@ def make_predictions_from_sqs(df):
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
+
     def tokenizer_wrapper(text):
         d = tokenizer(text, truncation=True, padding='max_length', max_length=128)
         return d['input_ids']
@@ -51,28 +52,35 @@ def make_predictions_from_sqs(df):
     label_encoder = pickle.load( open( "models/encoder_production.pkl", "rb" ) ) 
     df['sc_id_cat'] = label_encoder.transform(df['sc_id'])
 
+    return predict_from_df_prod(df)
 
 
+def predict_from_df_prod(df):
+    """
+    Production prediction code.
+    """
+
+    label_encoder = pickle.load( open( "models/encoder_production.pkl", "rb" ) ) 
+ 
     config = deepLegisConfig("distilbert_feature_extractor_128.json")
     deep_legis_model = config.model_class(config) 
 
-
-
-
+    # Batch the data
     deep_legis_model.batch_df(df, n_sc_id_classes=len(label_encoder.classes_), only_full=True)
 
+    # Load the transformer
     deep_legis_model.deep_legis_model = tf.keras.models.load_model('models/transformer_production')
 
-
-
+    # Do prediction with the transformer on the full dataset.
     hidden_states = deep_legis_model.deep_legis_model.predict(deep_legis_model.full_batches)
 
+    # Combine the metadata with the transformer output
     metadata_df = deep_legis_model.df[['sc_id_cat', 'version_number', 'partisan_lean']]
     metadata_df.reset_index(drop=True, inplace=True)
-
     feature_extractor_df = pd.concat([metadata_df, pd.DataFrame(hidden_states)], axis=1)
 
-
+    # Run the Catboost Classifier.
     catboost_model = CatBoostClassifier()
     catboost_model.load_model('models/catboost_production')
     preds_cat = catboost_model.predict_proba(feature_extractor_df)[:,1]
+    return preds_cat

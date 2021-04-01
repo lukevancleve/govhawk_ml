@@ -2,7 +2,7 @@ import boto3
 
 import os
 import pandas as pd
-from src.models.predict_model import make_predictions
+from src.models.predict_model import make_predictions_from_sqs
 
 
 if __name__ == '__main__':

@@ -93,3 +93,4 @@ logs/*
 *.aux
 *fls
 data/clean/*
+data/*

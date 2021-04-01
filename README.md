@@ -48,7 +48,34 @@ Project Organization
     │       └── visualize.py
 
 
-
+Instructions for use:
 ---------
 
+## Production
 
+
+## Training
+
+#### Step 1 - Take training text files off of S3 and store locally
+
+From within the docker image, run the below command. This will open up the csv file in `references/external/` and download all of the text file into
+the directory specified by `$DATA_VOL`. This will create two dirctories in `$DATA_VOL`: `raw` and `clean`. The `raw` directory has the original text
+files from each state, the `clean` directory has these same files but stripped of a large amount of superfluous text.
+
+```
+python scripts/make_local_clean_text.py
+```
+
+#### Step 2
+
+Create cleaned ML datasets from the provided metadata.
+
+```
+python scripts/run_partisan_lean.py
+python scripts/make_ml_data.py
+```
+
+#### Step 3
+
+Tokenize the clean text data and combine it with the pre-prepared ML dataset. The tokenization of a batch takes a substantive amount of time relative to
+the amount of time a GPU takes to process the batch. Thus, the strategy is to pretokenized and cache the inputs.  
