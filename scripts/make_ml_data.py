@@ -1,5 +1,7 @@
 import pandas as pd
 import os
+from sklearn.preprocessing import LabelEncoder
+import pickle
 
 METADATA_DIR = "references/external/"
 DERIVED_DIR = 'references/derived/'
@@ -15,8 +17,8 @@ pl = pd.read_csv(DERIVED_DIR + "/partisan_lean.csv", sep=",", encoding="latin1",
 
 if 'DATA_VOL' not in os.environ:
     # Manually set:
-    #raise("DATA_VOL should be set in the Docker image.")
-    DATA_VOL = '/datavol/'
+    raise("DATA_VOL should be set in the Docker image.")
+    #DATA_VOL = '/datavol/'
 else:
     DATA_VOL = os.environ['DATA_VOL']
 
@@ -79,6 +81,15 @@ ml_data['passed'] = ml_data['passed_lower']*(ml_data['chamber_id']==1) + ml_data
 ml_data = ml_data[['id', 'version_number', 'bill_id', 'signed', 'passed', 'partisan_lean',  'sc_id']]
 s1 = ml_data[['bill_id', 'id']].groupby('bill_id').sample(1)
 ml_data = ml_data.merge(s1, on = ['id', 'bill_id'])
+
+
+
+# Encode all the labels before (potentially) reducing the dataset.
+sc_id_encoder = LabelEncoder()
+ml_data['sc_id_cat'] = sc_id_encoder.fit_transform(ml_data['sc_id'])  
+pickle.dump( sc_id_encoder, open( "models/encoder_production.pkl", "wb" ) )
+
+
 ml_data.to_csv(DERIVED_DIR + 'ml_data.csv', index=False)
 
 print(f"ml_data.csv shape:{ml_data.shape}")

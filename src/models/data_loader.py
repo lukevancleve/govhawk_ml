@@ -7,13 +7,12 @@ from src.data.read_parallel import read_parallel_local
 import sys
 import os
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
 import datetime
 import time
 from pandarallel import pandarallel
 import pickle
 
-def createDeepLegisDataFrame(config, read_cached=True, reduce_by_factor=None, random_state=1):
+def createDeepLegisDataFrame(config, read_cached=True, reduce_by_factor=None, random_state=1, project_root="./"):
         """
         Create the full dataset from the preprepared ml_data.csv
         """
@@ -80,8 +79,8 @@ def createDeepLegisDataFrame(config, read_cached=True, reduce_by_factor=None, ra
                 df = df.reset_index(drop=True)
 
         # Encode all the labels before (potentially) reducing the dataset.
-        sc_id_encoder = LabelEncoder()
-        df['sc_id_cat'] = sc_id_encoder.fit_transform(df['sc_id'])    
+        sc_id_encoder = pickle.load( open( project_root + "models/encoder_production.pkl", "rb" ) )
+        #df['sc_id_cat'] = sc_id_encoder.fit_transform(df['sc_id'])    
 
         return df, sc_id_encoder
 

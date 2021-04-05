@@ -40,6 +40,7 @@ class data_downloader():
         """
 
         bills = zip(df['id'], df['url'])
+        ids = list(range(len(df)))
 
         tp = ThreadPool(processes=30)
         n_dl = tp.map(self.download_clean_save_individual, bills)
@@ -49,12 +50,17 @@ class data_downloader():
         print(f"Number of files downloaded:  {np.sum([x[0] for x in n_dl])}")
         print(f"Number of files cleaned: {np.sum([x[1] for x in n_dl])}")
 
+
     def download_clean_save_individual(self, id_url: Tuple[int, str]):
         """
         Given an (id, url) list, save the raw and clean copy of a bill.
         """
         id, url = id_url
-        raw_text = self.download_plain(url)
+        try:
+           raw_text = self.download_plain(url)
+        except Exception:
+            print(f"Could not open: {url}")
+            return (0,0)
 
         try:
             raw_file =  self.raw_dir + str(id) + ".txt"
@@ -77,7 +83,7 @@ class data_downloader():
     def download_plain(self, version_url: str) -> str:
 
         plain_text_url = "https://s3.amazonaws.com/statesavvy/" + md5(str.encode(version_url)).hexdigest() + ".plain"
-        r =  requests.get(plain_text_url)
+        r =  requests.get(plain_text_url, timeout=20)
 
         return r.text
 

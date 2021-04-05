@@ -5,7 +5,7 @@ from transformers import BertTokenizer
 from src.models.deeplegis import *
 from src.models.data_loader import *
 from src.data.data_downloader import data_downloader
-
+from sklearn.metrics import auc, roc_curve, roc_auc_score, classification_report, confusion_matrix
 import pandas as pd
 
 
@@ -27,7 +27,8 @@ def make_predictions_from_sqs(df):
     assert 'bill_version_id' in df.columns 
     assert 'partisan_lean' in df.columns 
 
-    dd = data_downloader("data/tests/")
+    
+    dd = data_downloader("data")
     # Data wrangle to pass to the model
     df['raw']   = df.plain_url.apply(dd.download_plain)
     df['text'] = df.raw.apply(dd.clean_text)
@@ -49,38 +50,87 @@ def make_predictions_from_sqs(df):
 
     df['tokens'] = df.text.apply( tokenizer_wrapper)
 
+    # Use the same encoder from training.
     label_encoder = pickle.load( open( "models/encoder_production.pkl", "rb" ) ) 
     df['sc_id_cat'] = label_encoder.transform(df['sc_id'])
 
-    return predict_from_df_prod(df)
+    prod_model = DeepLegisCatboost()
+    return prod_model.predict_from_df_prod(df)
 
 
-def predict_from_df_prod(df):
-    """
-    Production prediction code.
-    """
+class DeepLegisCatboost():
 
-    label_encoder = pickle.load( open( "models/encoder_production.pkl", "rb" ) ) 
- 
-    config = deepLegisConfig("distilbert_feature_extractor_128.json")
-    deep_legis_model = config.model_class(config) 
+    def __init__(self):
+        self.label_encoder = pickle.load( open( "models/encoder_production.pkl", "rb" ) ) 
 
-    # Batch the data
-    deep_legis_model.batch_df(df, n_sc_id_classes=len(label_encoder.classes_), only_full=True)
 
-    # Load the transformer
-    deep_legis_model.deep_legis_model = tf.keras.models.load_model('models/transformer_production')
+    def create_hidden_states(self, df):
 
-    # Do prediction with the transformer on the full dataset.
-    hidden_states = deep_legis_model.deep_legis_model.predict(deep_legis_model.full_batches)
+        config = deepLegisConfig("distilbert_feature_extractor_128.json")
+        deep_legis_model = config.model_class(config) 
 
-    # Combine the metadata with the transformer output
-    metadata_df = deep_legis_model.df[['sc_id_cat', 'version_number', 'partisan_lean']]
-    metadata_df.reset_index(drop=True, inplace=True)
-    feature_extractor_df = pd.concat([metadata_df, pd.DataFrame(hidden_states)], axis=1)
+        # Batch the data
+        deep_legis_model.batch_df(df, n_sc_id_classes=len(self.label_encoder.classes_), only_full=True)
 
-    # Run the Catboost Classifier.
-    catboost_model = CatBoostClassifier()
-    catboost_model.load_model('models/catboost_production')
-    preds_cat = catboost_model.predict_proba(feature_extractor_df)[:,1]
-    return preds_cat
+        # Load the transformer
+        deep_legis_model.deep_legis_model = tf.keras.models.load_model('models/transformer_production')
+
+        # Do prediction with the transformer on the full dataset.
+        hidden_states = deep_legis_model.deep_legis_model.predict(deep_legis_model.full_batches)
+
+        return pd.DataFrame(hidden_states)
+
+    def train_catboost(self, df):
+
+
+        hidden_states = self.create_hidden_states(df)
+
+        # Combine the metadata with the transformer output
+        metadata_df = deep_legis_model.df[['sc_id_cat', 'version_number', 'partisan_lean']]
+        metadata_df.reset_index(drop=True, inplace=True)
+        feature_extractor_df = pd.concat([metadata_df, hidden_states], axis=1)
+
+        # Train the Classifier.
+        model = CatBoostClassifier(
+            custom_loss=['Accuracy'],
+            random_seed=42,
+            logging_level='Silent',
+            depth=10
+        )
+        categorical_features_indices = [0]
+        (X_train, X_test, Y_train, Y_test) = \
+            train_test_split(df_cat_x, df_cat_y, test_size=0.1, random_state=0)
+
+        model.fit(
+            X_train, Y_train,
+            cat_features=categorical_features_indices,
+            eval_set=(X_test, Y_test),
+            plot=False
+        )
+
+        
+        model.save_model('models/catboost_production')
+
+        pred = catboost_model.predict_proba(X_test)[:,1]
+        truth = Y_test.values
+        print(confusion_matrix(truth, pred>0.5))
+        print(f"AUROC:{roc_auc_score(truth, pred)}")
+
+
+    def predict_from_df_prod(self, df):
+        """
+        Production prediction code.
+        """
+    
+        hidden_states = self.create_hidden_states(df)
+
+        # Combine the metadata with the transformer output
+        metadata_df = deep_legis_model.df[['sc_id_cat', 'version_number', 'partisan_lean']]
+        metadata_df.reset_index(drop=True, inplace=True)
+        feature_extractor_df = pd.concat([metadata_df, pd.DataFrame(hidden_states)], axis=1)
+
+        # Run the Catboost Classifier.
+        catboost_model = CatBoostClassifier()
+        catboost_model.load_model('models/catboost_production')
+        preds_cat = catboost_model.predict_proba(feature_extractor_df)[:,1]
+        return preds_cat
