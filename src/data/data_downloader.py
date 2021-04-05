@@ -40,44 +40,64 @@ class data_downloader():
         """
 
         bills = zip(df['id'], df['url'])
-        ids = list(range(len(df)))
 
         tp = ThreadPool(processes=30)
         n_dl = tp.map(self.download_clean_save_individual, bills)
         tp.terminate()
         tp.close()
 
-        print(f"Number of files downloaded:  {np.sum([x[0] for x in n_dl])}")
-        print(f"Number of files cleaned: {np.sum([x[1] for x in n_dl])}")
+        print(f"Number of files timeout:  {np.sum([x[0] for x in n_dl])}")
+        print(f"Number of files downloaded:  {np.sum([x[1] for x in n_dl])}")
+        print(f"Number of files cleaned: {np.sum([x[2] for x in n_dl])}")
 
 
     def download_clean_save_individual(self, id_url: Tuple[int, str]):
         """
         Given an (id, url) list, save the raw and clean copy of a bill.
+
+        returns a tuple of three 0/1 values that signify:
+        tuple[0] = Was there a download error
+        tuple[1] = Sucessful download
+        tuple[2] = Sucessful clean
+
         """
         id, url = id_url
-        try:
-           raw_text = self.download_plain(url)
-        except Exception:
-            print(f"Could not open: {url}")
-            return (0,0)
 
-        try:
-            raw_file =  self.raw_dir + str(id) + ".txt"
-            with open(raw_file, "w") as f:
-                f.write(raw_text)
-        except Exception:
-            return (0, 0)
+        raw_file =  self.raw_dir + str(id) + ".txt"
+        clean_file = self.clean_dir + str(id) + ".txt"
+        raw_text = None
 
-        try:
-            clean_text = self.clean_text(raw_text)
-            clean_file = self.clean_dir + str(id) + ".txt"
-            with open(clean_file, "w") as f:
-                f.write(clean_text)
-        except:
-            return (1,0)
+        if not os.path.exists(raw_file):
+            # Download it if we have not already
 
-        return (1,1)
+            try:
+                raw_text = self.download_plain(url)
+            except Exception:
+                print(f"Could not open: {url}")
+                return (1, 0,0)
+
+            try:
+
+                with open(raw_file, "w") as f:
+                    f.write(raw_text)
+            except Exception:
+                return (0, 0, 0)
+
+        if not os.path.exists(clean_file):
+
+            if raw_text is None:
+                with open(raw_file, "r") as f:
+                    raw_text = f.readlines()
+
+            try:
+                clean_text = self.clean_text(raw_text)
+
+                with open(clean_file, "w") as f:
+                    f.write(clean_text)
+            except:
+                return (0, 1,0)
+
+        return (0,1,1)
 
 
     def download_plain(self, version_url: str) -> str:
@@ -114,31 +134,31 @@ class data_downloader():
 
         #return(clean)
         # 1. Remove all the line numbers from bill text
-        clean = re.sub('\n\s*\d*\s', '\n', clean)
+        clean = re.sub(r'\n\s*\d*\s', '\n', clean)
 
         # Remove ic 3-2-3-233
-        clean = re.sub('ic\s+[\d-]+', '', clean, flags=re.IGNORECASE )
+        clean = re.sub(r'ic\s+[\d-]+', '', clean, flags=re.IGNORECASE )
 
         # Remove p.l.333-3333
-        clean = re.sub('p\.l\.\s+[\d-]+', '', clean, flags=re.IGNORECASE )
+        clean = re.sub(r'p\.l\.\s+[\d-]+', '', clean, flags=re.IGNORECASE )
 
-        clean = re.sub('SB\d+ Enrolled.*?\\n', '', clean)
+        clean = re.sub(r'SB\d+ Enrolled.*?\\n', '', clean)
 
         # remove line feed looking thing:
-        clean = re.sub('\s*=+\\n\s*LC\d*\s*\\n\s*=+\\n', '', clean)
+        clean = re.sub(r'\s*=+\\n\s*LC\d*\s*\\n\s*=+\\n', '', clean)
 
         # 2. fix between line dashes
-        clean = re.sub('[-]\s*\n\s*', '', clean)
+        clean = re.sub(r'[-]\s*\n\s*', '', clean)
 
         # 3. Remove (\d), (\d\d), or (\a)
-        clean = re.sub('\(\d+\)', '', clean)
-        clean = re.sub('\(\w+\)', '', clean)
+        clean = re.sub(r'\(\d+\)', '', clean)
+        clean = re.sub(r'\(\w+\)', '', clean)
 
         # 4. Remove markdownlinks:
-        clean = re.sub('\[.*?\]\(.*?\)', '', clean)
+        clean = re.sub(r'\[.*?\]\(.*?\)', '', clean)
 
         # 5. remove newlines
-        clean = re.sub('\\n', ' ', clean)
+        clean = re.sub(r'\\n', ' ', clean)
 
         # 5. remove dashes following a space or preceding a space
         clean = re.sub('[-_]+', '-', clean)
@@ -146,19 +166,19 @@ class data_downloader():
         clean = re.sub('[-_] ', ' ', clean)
 
         # collpse whitespce into one space.
-        clean = re.sub('\s+', ' ', clean)
+        clean = re.sub(r'\s+', ' ', clean)
   
-        clean = re.sub('\\nSec\. \d.*?.\\n', "\n", clean)
+        clean = re.sub(r'\\nSec\. \d.*?.\\n', "\n", clean)
 
-        clean = re.sub('\(.*?\)', '', clean)
-        clean = re.sub('\[.*?\]', '', clean)
+        clean = re.sub(r'\(.*?\)', '', clean)
+        clean = re.sub(r'\[.*?\]', '', clean)
 
-        clean = re.sub('\(Source.*?\)', '', clean)
+        clean = re.sub(r'\(Source.*?\)', '', clean)
 
-        clean = re.sub('[Ss]ection \d+', '', clean)
-        clean = re.sub('[hH]\.? [rR]\.? \d+', '', clean)
+        clean = re.sub(r'[Ss]ection \d+', '', clean)
+        clean = re.sub(r'[hH]\.? [rR]\.? \d+', '', clean)
 
-        clean = re.sub(' [-.,\d]+ ', ' ', clean)
+        clean = re.sub(r' [-.,\d]+ ', ' ', clean)
 
         # lower case all
         clean = clean.lower()
