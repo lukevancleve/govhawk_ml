@@ -99,7 +99,7 @@ class legislationDataset(ABC):
         pass
 
     @abstractmethod
-    def select_vars(self):
+    def select_vars(self, df):
         pass
 
     @abstractmethod

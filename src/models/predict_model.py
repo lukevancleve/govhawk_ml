@@ -85,6 +85,7 @@ class DeepLegisCatboost():
 
 
         hidden_states = self.create_hidden_states(df)
+        print("Created hiddgen states.")
 
         # Combine the metadata with the transformer output
         metadata_df = df[['sc_id_cat', 'version_number', 'partisan_lean']]

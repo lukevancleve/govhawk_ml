@@ -6,7 +6,6 @@ import pandas as pd
 import os
 from multiprocessing.pool import ThreadPool
 import numpy as np
-#from nltk.tokenize import word_tokenize
 
 class data_downloader():
     """
@@ -73,7 +72,7 @@ class data_downloader():
             try:
                 raw_text = self.download_plain(url)
             except Exception:
-                print(f"Could not open: {url}")
+                print(f"Could not open: {self.plain_url(url)}")
                 return (1, 0,0)
 
             try:
@@ -100,18 +99,26 @@ class data_downloader():
         return (0,1,1)
 
 
-    def download_plain(self, version_url: str) -> str:
+    def plain_url(self, url:str) -> str:
+        """Return the S3 location of the document."""
+        return "https://s3.amazonaws.com/statesavvy/" + md5(str.encode(url)).hexdigest() + ".plain" 
 
-        plain_text_url = "https://s3.amazonaws.com/statesavvy/" + md5(str.encode(version_url)).hexdigest() + ".plain"
+    def download_plain(self, url: str) -> str:
+        """Download the plain url and return the text"""
+
+        plain_text_url = url(url)
         r =  requests.get(plain_text_url, timeout=20)
 
         return r.text
 
     def clean_text(self, text: str) -> str:
+        """
+        Clean the bills of junk that is unhelpful information for the
+        NLP work. E.g. headers, footers, boilerplate, etc.
+        """
 
         # 0. Remove all the non-ascii characters
         clean = text.encode("ascii", "ignore").decode()
-
 
         issue = clean.find('Access Denied')
         if issue != -1:
@@ -184,12 +191,6 @@ class data_downloader():
         clean = clean.lower()
 
         return(clean)
-        # 4. Tokenize it
-        #tokens = word_tokenize(clean)
-
-        # save back to the class
-        #self.tokens = [word for word in tokens if word.isalpha()]
-        #self.clean_string = " ".join(self.tokens)
 
 
 
