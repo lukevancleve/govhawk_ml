@@ -1,11 +1,12 @@
-import requests
-from typing import List, Tuple
-import re
 from hashlib import md5
-import pandas as pd
-import os
 from multiprocessing.pool import ThreadPool
+import os
+import re
+from typing import Tuple
+
 import numpy as np
+import requests
+
 
 class data_downloader():
     """
@@ -26,7 +27,7 @@ class data_downloader():
         self.volume = volume
         self.raw_dir = self.volume + "/raw/"
         self.clean_dir = self.volume + '/clean/'
-    
+
         if not os.path.exists(self.raw_dir):
             os.mkdir(self.raw_dir)
         if not os.path.exists(self.clean_dir):
@@ -60,10 +61,10 @@ class data_downloader():
         tuple[2] = Sucessful clean
 
         """
-        id, url = id_url
+        rev_id, url = id_url
 
-        raw_file =  self.raw_dir + str(id) + ".txt"
-        clean_file = self.clean_dir + str(id) + ".txt"
+        raw_file =  self.raw_dir + str(rev_id) + ".txt"
+        clean_file = self.clean_dir + str(rev_id) + ".txt"
         raw_text = None
 
         if not os.path.exists(raw_file):
@@ -71,7 +72,7 @@ class data_downloader():
 
             try:
                 raw_text = self.download_plain(url)
-            except Exception:
+            except IOError:
                 print(f"Could not open: {self.plain_url(url)}")
                 return (1, 0,0)
 
@@ -79,7 +80,7 @@ class data_downloader():
 
                 with open(raw_file, "w") as f:
                     f.write(raw_text)
-            except Exception:
+            except (OSError, IOError):
                 return (0, 0, 0)
 
         if not os.path.exists(clean_file):
@@ -93,7 +94,7 @@ class data_downloader():
 
                 with open(clean_file, "w") as f:
                     f.write(clean_text)
-            except:
+            except (OSError, IOError):
                 return (0, 1,0)
 
         return (0,1,1)
@@ -106,7 +107,7 @@ class data_downloader():
     def download_plain(self, url: str) -> str:
         """Download the plain url and return the text"""
 
-        plain_text_url = url(url)
+        plain_text_url = self.plain_url(url)
         r =  requests.get(plain_text_url, timeout=20)
 
         return r.text
@@ -122,7 +123,7 @@ class data_downloader():
 
         issue = clean.find('Access Denied')
         if issue != -1:
-            return(None)
+            return None
 
         start_anchors = ["- FullText", "DELAWARE STATE SENATE", "STATE OF NEW HAMPSHIRE",
         "Be it enacted by the General Assembly of the state of Missouri, as follows:",
@@ -174,7 +175,7 @@ class data_downloader():
 
         # collpse whitespce into one space.
         clean = re.sub(r'\s+', ' ', clean)
-  
+
         clean = re.sub(r'\\nSec\. \d.*?.\\n', "\n", clean)
 
         clean = re.sub(r'\(.*?\)', '', clean)
@@ -190,7 +191,4 @@ class data_downloader():
         # lower case all
         clean = clean.lower()
 
-        return(clean)
-
-
-
+        return clean

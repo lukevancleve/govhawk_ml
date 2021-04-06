@@ -1,8 +1,10 @@
 import logging
-from pathlib import Path
-import pandas as pd
 import os
 import sys
+
+from pathlib import Path
+import pandas as pd
+
 from src.data.data_downloader import data_downloader
 
 def main(vol_path):
@@ -39,7 +41,7 @@ if __name__ == '__main__':
 
     try:
         data_vol = os.environ['DATA_VOL']
-    except Exception:
+    except KeyError:
         print("No env variable for 'DATA_VOL' specified.")
         sys.exit(1)
 

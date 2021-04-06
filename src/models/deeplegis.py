@@ -1,17 +1,26 @@
 from abc import ABC, abstractmethod
-from typing import Dict
+
 import tensorflow as tf
-from transformers import LongformerTokenizer
-from transformers import TFLongformerModel, TFLongformerForSequenceClassification, TFBertForSequenceClassification
+from transformers import TFLongformerForSequenceClassification, TFBertForSequenceClassification
 from transformers import TFDistilBertForSequenceClassification
-from src.models.data_loader import *
-import os
+
+from src.models.data_loader import createDeepLegisDataFrame, legislationDatasetPartisanLean, \
+    legislationDatasetText, legislationDatasetAll, legislationDatasetRevCat, legislationDatasetNoText, \
+    legislationDatasetAllSigned
+
 
 class BaseLegisModel(ABC):
     """Abstract Model class that is inherited to all models"""
     def __init__(self, config):
         self.config = config
         self.deep_legis_model = None
+        self.full_batches = None
+        self.train_batches = None
+        self.val_batches = None
+        self.test_batches = None
+        self.df = None
+        self.split_data = None
+        self.base_transformer_model =None
 
     def batch_df(self, df, n_sc_id_classes=134, only_full=True):
 
@@ -100,13 +109,11 @@ class deepLegisNoText(BaseLegisModel):
     DeepLegis model with no text included. Reference model for information gain from
     adding the text.
     """
-    def __init__(self, config):
-        super().__init__(config)
         
-    def process_specific_data(self, testing=False):
+    def process_specific_data(self):
       
         self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
-            legislationDatasetNoText(self.config).create_batch_stream(self.df, testing=testing)
+            legislationDatasetNoText(self.config).create_batch_stream(self.df)
 
     def build(self):
 
@@ -128,13 +135,11 @@ class deepLegisText(BaseLegisModel):
     """
     DeepLegis model with only text included. Base model is longformer.
     """
-    def __init__(self, config):
-        super().__init__(config)
         
     def process_specific_data(self):
 
         self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
-            legislationDatasetAll(self.config).create_batch_stream(self.df)
+            legislationDatasetText(self.config).create_batch_stream(self.df)
 
     def build(self):
         self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
@@ -142,10 +147,6 @@ class deepLegisText(BaseLegisModel):
 
         x = self.base_transformer_model.distilbert(ids) # Get the main Layer
         x = x[0][:,0,:]
-        # x = tf.keras.layers.Dropout(0.2)(x)
-        # x = tf.concat([x], axis=-1)
-        # x = tf.keras.layers.Dense(self.config.n_dense_layers, activation='relu')(x)
-        # x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.Dense(1, activation='sigmoid')(x)
         dl_model = tf.keras.Model(inputs={"input_ids":ids}, outputs=[x])
 
@@ -155,8 +156,6 @@ class deepLegisPartisanLean(BaseLegisModel):
     """
     DeepLegis model with text and partisan lean included. 
     """
-    def __init__(self, config):
-        super().__init__(config)
         
     def process_specific_data(self):
 
@@ -168,7 +167,7 @@ class deepLegisPartisanLean(BaseLegisModel):
         self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         ids = tf.keras.Input((self.config.max_length), dtype=tf.int32, name='input_ids')
         pl = tf.keras.Input((1, ), dtype=tf.float32, name='partisan_lean')
-        x = model.longformer(ids) # Get the main Layer
+        x = self.base_transformer_model.distilbert(ids) # Get the main Layer
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.concat([x, pl], axis=-1)
@@ -183,8 +182,6 @@ class deepLegisRevCat(BaseLegisModel):
     """
     DeepLegis model with text, version number, partisan lean included. 
     """
-    def __init__(self, config):
-        super().__init__(config)
         
     def process_specific_data(self):
 
@@ -222,8 +219,6 @@ class deepLegisBert(BaseLegisModel):
     """
     DeepLegis model with BERT as the transformer, ALL metadata included.
     """
-    def __init__(self, config):
-        super().__init__(config)
         
     def process_specific_data(self):
 
@@ -270,9 +265,7 @@ class deepLegisDistilBert(BaseLegisModel):
     """
     DeepLegis model with DistillBERT as the transformer, ALL metadata included.
     """
-    def __init__(self, config):
-        super().__init__(config)
-        
+         
     def process_specific_data(self):
        
         self.train_batches, self.val_batches, self.test_batches, self.full_batches, self.split_data = \
@@ -301,8 +294,6 @@ class deepLegisDistilBert(BaseLegisModel):
         # Handle the Transformer
         self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         x = self.base_transformer_model.distilbert(ids) # Get the main Layer
-        hidden_state = x[0]
-        
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
 
@@ -319,8 +310,6 @@ class deepLegisDistilBertFeatureExtractor(BaseLegisModel):
     """
     DeepLegis model with DistillBERT as the transformer, output is the hidden state.
     """
-    def __init__(self, config):
-        super().__init__(config)
         
     def process_specific_data(self):
        
@@ -345,8 +334,6 @@ class deepLegisLongformerFeatureExtractor(BaseLegisModel):
     """
     DeepLegis model with DistillBERT as the transformer, output is the hidden state.
     """
-    def __init__(self, config):
-        super().__init__(config)
         
     def process_specific_data(self):
        
@@ -371,8 +358,6 @@ class deepLegisDistilBertTextFeatureExtractor(BaseLegisModel):
     """
     DeepLegis model with DistillBERT as the transformer, output is the hidden state.
     """
-    def __init__(self, config):
-        super().__init__(config)
         
     def process_specific_data(self):
        
@@ -400,8 +385,6 @@ class deepLegisDistilBertSigned(BaseLegisModel):
     """
     DeepLegis model with DistillBERT as the transformer, ALL metadata included.
     """
-    def __init__(self, config):
-        super().__init__(config)
         
     def process_specific_data(self):
        
@@ -431,8 +414,6 @@ class deepLegisDistilBertSigned(BaseLegisModel):
         # Handle the Transformer
         self.base_transformer_model = TFDistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
         x = self.base_transformer_model.distilbert(ids) # Get the main Layer
-        hidden_state = x[0]
-        
         x = x['last_hidden_state'][:,0,:]
         x = tf.keras.layers.Dropout(0.2)(x)
 

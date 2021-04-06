@@ -1,10 +1,10 @@
 from typing import List
-from multiprocessing import Pool
-from multiprocessing.pool import ThreadPool
 import time
 
+from multiprocessing.pool import ThreadPool
 
-def read_parallel_local(ids: List[int], dir: str, processes=20) -> List[str]:
+
+def read_parallel_local(ids: List[int], directory: str, processes=20) -> List[str]:
     """
     Paralleize the reading of documents on the local volume.
     ids: List of ids of the texts to read.
@@ -12,12 +12,12 @@ def read_parallel_local(ids: List[int], dir: str, processes=20) -> List[str]:
     processs: number of parallel processes to use.
 
     """
-    def read_legislative_file(id):
+    def read_legislative_file(rev_id:int):
         try:
-           with open(dir + "/" + str(id) + ".txt") as f:
+            with open(directory + "/" + str(rev_id) + ".txt") as f:
                 doc = f.read()
                 return doc
-        except:
+        except (OSError, IOError):
             return None
 
     start_time = time.time()

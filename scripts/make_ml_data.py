@@ -1,7 +1,8 @@
-import pandas as pd
 import os
-from sklearn.preprocessing import LabelEncoder
 import pickle
+
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 METADATA_DIR = "references/external/"
 DERIVED_DIR = 'references/derived/'

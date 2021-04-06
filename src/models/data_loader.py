@@ -1,88 +1,85 @@
 from abc import ABC, abstractmethod
+import pickle
+import os
+import time
+
+from pandarallel import pandarallel
+import pandas as pd
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 
-from transformers import DistilBertTokenizer
 from src.data.read_parallel import read_parallel_local
-import sys
-import os
-import pandas as pd
-import datetime
-import time
-from pandarallel import pandarallel
-import pickle
 
 def createDeepLegisDataFrame(config, read_cached=True, reduce_by_factor=None, random_state=1, project_root="./"):
-        """
-        Create the full dataset from the preprepared ml_data.csv
-        """
+    """
+    Create the full dataset from the preprepared ml_data.csv
+    """
 
-        if read_cached:
-            # Cached has the text already tokenized.
+    if read_cached:
+        # Cached has the text already tokenized.
 
-            tic = time.perf_counter()
-            if config.max_length == 128:
-                pickle_file = config.data_vol + "preprocessed_df_128.pkl"
-                df = pd.read_pickle(pickle_file)
-            elif config.max_length == 512:
-                pickle_file = config.data_vol + "preprocessed_df_512.pkl"
-                df = pd.read_pickle(pickle_file)
-            elif config.max_length == 4096:
-                pickle_file = config.data_vol + "preprocessed_df_longformer_4096.pkl"
-                df = pd.read_pickle(pickle_file)
-            else:
-                raise "Invalid max_length for pickle file."
-            toc = time.perf_counter()
-            print(f"Loading pickle file ({pickle_file}) took {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
-
-            print(f"Original number of examples: {len(df)}")
-            if reduce_by_factor is not None:
-                df = df.sample(n=int(len(df)/reduce_by_factor), random_state=random_state) 
-                print(f"Reduced number of examples:  {len(df)}")
-
+        tic = time.perf_counter()
+        if config.max_length == 128:
+            pickle_file = config.data_vol + "preprocessed_df_128.pkl"
+            df = pd.read_pickle(pickle_file)
+        elif config.max_length == 512:
+            pickle_file = config.data_vol + "preprocessed_df_512.pkl"
+            df = pd.read_pickle(pickle_file)
+        elif config.max_length == 4096:
+            pickle_file = config.data_vol + "preprocessed_df_longformer_4096.pkl"
+            df = pd.read_pickle(pickle_file)
         else:
+            raise "Invalid max_length for pickle file."
+        toc = time.perf_counter()
+        print(f"Loading pickle file ({pickle_file}) took {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
 
-            # Pre-wrangled metadata
-            df = pd.read_csv(config.project_root + "references/derived/ml_data.csv", encoding="latin1", parse_dates=True)
-            df.id = df.id.astype(int)
+        print(f"Original number of examples: {len(df)}")
+        if reduce_by_factor is not None:
+            df = df.sample(n=int(len(df)/reduce_by_factor), random_state=random_state) 
+            print(f"Reduced number of examples:  {len(df)}")
 
-            print(f"Original number of examples: {len(df)}")
-            if reduce_by_factor is not None:
-                df = df.sample(n=int(len(df)/reduce_by_factor), random_state=random_state) 
-                print(f"Reduced number of examples:  {len(df)}")
+    else:
 
-            # Skip the text if we're not using it.
-            if config.tokenizer is not None:
-                clean_path = config.data_vol + "clean/"
-                if not os.path.exists(clean_path):
-                    raise 'No such directory: ' + clean_path
-                print(f"Loading {len(df)} text files")
-                df['text'] = read_parallel_local(df['id'], config.data_vol + "clean/")
-                na_text_rows = df.text.isna()
-                if sum(na_text_rows) > 0:
-                    print(f"WARNING! Removing {sum(na_text_rows)} rows becase the text value is None.")
-                    df = df[~na_text_rows]
+        # Pre-wrangled metadata
+        df = pd.read_csv(config.project_root + "references/derived/ml_data.csv", encoding="latin1", parse_dates=True)
+        df.id = df.id.astype(int)
 
-                # Use all the CPU cores to tokenize the text.
-                pandarallel.initialize()
-                tic = time.perf_counter()
+        print(f"Original number of examples: {len(df)}")
+        if reduce_by_factor is not None:
+            df = df.sample(n=int(len(df)/reduce_by_factor), random_state=random_state) 
+            print(f"Reduced number of examples:  {len(df)}")
 
-                # Used to pass back an element of the dict
-                def tokenizer_wrapper(text):
-                    d = config.tokenizer(text, truncation=True, padding='max_length', max_length=config.max_length)
-                    return d['input_ids']
+        # Skip the text if we're not using it.
+        if config.tokenizer is not None:
+            clean_path = config.data_vol + "clean/"
+            if not os.path.exists(clean_path):
+                raise 'No such directory: ' + clean_path
+            print(f"Loading {len(df)} text files")
+            df['text'] = read_parallel_local(df['id'], config.data_vol + "clean/")
+            na_text_rows = df.text.isna()
+            if sum(na_text_rows) > 0:
+                print(f"WARNING! Removing {sum(na_text_rows)} rows becase the text value is None.")
+                df = df[~na_text_rows]
 
-                df['tokens'] = df.text.parallel_apply( tokenizer_wrapper)
-                toc = time.perf_counter()
-                print(f"Tokenized in {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
+            # Use all the CPU cores to tokenize the text.
+            pandarallel.initialize()
+            tic = time.perf_counter()
 
-                df = df.reset_index(drop=True)
+            # Used to pass back an element of the dict
+            def tokenizer_wrapper(text):
+                d = config.tokenizer(text, truncation=True, padding='max_length', max_length=config.max_length)
+                return d['input_ids']
 
-        # Encode all the labels before (potentially) reducing the dataset.
-        sc_id_encoder = pickle.load( open( project_root + "models/encoder_production.pkl", "rb" ) )
-        #df['sc_id_cat'] = sc_id_encoder.fit_transform(df['sc_id'])    
+            df['tokens'] = df.text.parallel_apply( tokenizer_wrapper)
+            toc = time.perf_counter()
+            print(f"Tokenized in {(toc-tic)/60.0} min -  {toc - tic:0.4f} seconds")
 
-        return df, sc_id_encoder
+            df = df.reset_index(drop=True)
+
+    # Encode all the labels before (potentially) reducing the dataset.
+    sc_id_encoder = pickle.load( open( project_root + "models/encoder_production.pkl", "rb" ) )
+
+    return df, sc_id_encoder
 
 class legislationDataset(ABC):
     """Abstract Class for data loading for all the DeepLegis variations"""
@@ -178,8 +175,6 @@ class legislationDataset(ABC):
 
 class legislationDatasetPartisanLean(legislationDataset):
 
-    def __init__(self, config):
-        super().__init__(config)
 
     def to_feature(self, tokens, label, partisan_lean):
   
@@ -209,9 +204,6 @@ class legislationDatasetPartisanLean(legislationDataset):
                                                    df['partisan_lean'].values))
 
 class legislationDatasetText(legislationDataset):
-
-    def __init__(self, config):
-        super().__init__(config)
     
     def to_feature(self, tokens, label):
   
@@ -236,11 +228,8 @@ class legislationDatasetText(legislationDataset):
 
 class legislationDatasetAll(legislationDataset):
 
-    def __init__(self, config):
-        super().__init__(config)
-
     def to_feature(self, tokens, label, partisan_lean, version_number):
-  
+
         return (tf.cast(tokens, 'int32'), tf.cast(label, 'int32'), \
                tf.cast(partisan_lean, 'float32'), tf.cast(version_number, 'float32'))
 
@@ -252,7 +241,7 @@ class legislationDatasetAll(legislationDataset):
         input_ids, label_id, partisan_lean, version_number  \
            = tf.py_function(self.to_feature, [tokens, label, partisan_lean, version_number], \
                Tout = [tf.int32, tf.int32, tf.float32, tf.float32])
-    
+
         sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
 
         input_ids.set_shape([self.config.max_length])
@@ -260,14 +249,14 @@ class legislationDatasetAll(legislationDataset):
         partisan_lean.set_shape([])
         version_number.set_shape([])
         sc_ids = sc_ids[0]
-    
+
         x = {
             'input_ids': input_ids,
             'partisan_lean': partisan_lean,
             'version_number': version_number,
             'sc_id': sc_ids
         }
-    
+
         return (x, label_id)
 
     def select_vars(self, df):
@@ -280,11 +269,8 @@ class legislationDatasetAll(legislationDataset):
 
 class legislationDatasetRevCat(legislationDataset):
 
-    def __init__(self, config):
-        super().__init__(config)
-
     def to_feature(self, tokens, label,  version_number):
-  
+
         return (tf.cast(tokens, 'int32'), tf.cast(label, 'int32'),  \
                 tf.cast(version_number, 'float32'))
 
@@ -296,20 +282,20 @@ class legislationDatasetRevCat(legislationDataset):
         input_ids, label_id,  version_number  \
            = tf.py_function(self.to_feature, [tokens, label, version_number], \
                Tout = [tf.int32, tf.int32, tf.float32])
-    
+
         sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
         sc_ids = sc_ids[0]
 
         input_ids.set_shape([self.config.max_length])
         label_id.set_shape([])
         version_number.set_shape([])
-    
+
         x = {
             'input_ids': input_ids,
             'version_number': version_number,
             'sc_id': sc_ids
         }
-    
+
         return (x, label_id)
 
     def select_vars(self, df):
@@ -321,12 +307,9 @@ class legislationDatasetRevCat(legislationDataset):
 
 class legislationDatasetNoText(legislationDataset):
 
-    def __init__(self, config):
-        super().__init__(config)
-
     def to_feature(self, label, partisan_lean, version_number):
 
-    
+
         return (tf.cast(label, 'int32'), tf.cast(partisan_lean, 'float32'), tf.cast(version_number, 'float32'))
 
     def sc_one_hot(self, sc_id):
@@ -337,20 +320,20 @@ class legislationDatasetNoText(legislationDataset):
 
         label_id, partisan_lean, version_number  \
            = tf.py_function(self.to_feature, [label, partisan_lean, version_number], Tout = [tf.int32, tf.float32, tf.float32])
-    
+
         sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
         sc_ids = sc_ids[0]
-        
+
         label_id.set_shape([])
         partisan_lean.set_shape([])
         version_number.set_shape([])
-    
+
         x = {
             'partisan_lean': partisan_lean,
             'version_number': version_number,
             'sc_id': sc_ids
         }
-    
+
         return (x, label_id)
 
     def select_vars(self, df):
@@ -361,9 +344,6 @@ class legislationDatasetNoText(legislationDataset):
                                                    df['sc_id_cat'].values))
 
 class legislationDatasetAllWithAttention(legislationDataset):
-
-    def __init__(self, config):
-        super().__init__(config)
 
     def to_feature(self, tokens, attention_mask, label, partisan_lean, version_number):
   
@@ -378,7 +358,7 @@ class legislationDatasetAllWithAttention(legislationDataset):
         input_ids, attention_mask, label_id, partisan_lean, version_number  \
            = tf.py_function(self.to_feature, [tokens, attention_mask, label, partisan_lean, version_number], \
                Tout = [tf.int32, tf.int32, tf.int32, tf.float32, tf.float32])
-    
+
         sc_ids = tf.py_function(self.sc_one_hot, [sc_id], Tout=[tf.float32])
 
         input_ids.set_shape([self.config.max_length])
@@ -387,7 +367,7 @@ class legislationDatasetAllWithAttention(legislationDataset):
         partisan_lean.set_shape([])
         version_number.set_shape([])
         sc_ids = sc_ids[0]
-    
+
         x = {
             'input_ids': input_ids,
             'attention_mask': attention_mask,
@@ -395,7 +375,7 @@ class legislationDatasetAllWithAttention(legislationDataset):
             'version_number': version_number,
             'sc_id': sc_ids
         }
-    
+
         return (x, label_id)
 
     def select_vars(self, df):
@@ -409,11 +389,8 @@ class legislationDatasetAllWithAttention(legislationDataset):
 
 class legislationDatasetAllSigned(legislationDataset):
 
-    def __init__(self, config):
-        super().__init__(config)
-
     def to_feature(self, tokens, label, partisan_lean, version_number):
-  
+
         return (tf.cast(tokens, 'int32'), tf.cast(label, 'int32'), \
                tf.cast(partisan_lean, 'float32'), tf.cast(version_number, 'float32'))
 
