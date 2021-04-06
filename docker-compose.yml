@@ -1,8 +1,15 @@
 services:
-  local:
+  production:
     image: prod_govhawk
+    runtime: nvidia   
+    shm_size: '2gb' # Pandarallel uses /dev/shm
+    environment: 
+      - DATA_VOL=/data/
+      - PYTHONPATH=/app/
+  dev:
+    image: dev_govhawk
     ports:
-      - "5000:8888"
+      - "8888:8888"
     volumes: 
       - "/home/luke/repos/govhawk_ml/data/:/data/"
       - "/home/luke/repos/govhawk_ml/:/app:cached"
