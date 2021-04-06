@@ -4,7 +4,7 @@ DeepLegis
 Machine learning system using NLP on state-level legislative text. Work was done jointly for the startup [Govhawk](https://govhawk.com/) and as a Capstone 
 product for the Machine Learning Engineer trach with [Springboard](https://www.springboard.com/)
 
-![Architecture](https://github.com/lukevancleve/govhawk_ml/blob/master/reports/figures/network_architecture.jpg)
+![Architecture](https://github.com/lukevancleve/govhawk_ml/blob/master/reports/figures/network_architecture.png)
 
 Project Organization
 ------------
