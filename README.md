@@ -1,4 +1,4 @@
-govhawk_ml
+DeepLegis
 ==============================
 
 Machine learning system using NLP on state-level legislative text. Work was done jointly for the startup [Govhawk](https://govhawk.com/) and as a Capstone 
