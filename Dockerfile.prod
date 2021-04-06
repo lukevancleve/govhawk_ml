@@ -1,0 +1,11 @@
+FROM python:3.8-slim
+RUN apt-get update && apt-get install -y make curl unzip libcurl4-openssl-dev
+WORKDIR /app
+ENV PYTHONPATH "${PYTHONPATH}:/app/"
+
+ADD . /app
+
+RUN cd /app && pip install -r requirements.txt
+
+CMD ["python", "deployed/test_recieve"]
+

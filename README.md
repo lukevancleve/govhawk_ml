@@ -96,3 +96,13 @@ Train the model. Run all the cached observations through BERT and then use the o
 ```
 python scripts/train_prod_model.py
 ```
+
+## Docker files
+
+The main docker file is for dev work, it mounts the local directory to `/app` so you can edit code and do development with i.
+
+```
+docker-compose up dev
+```
+
+The `Dockerfile.prod` is the full image with a trained model meant for inference on unseen data.
