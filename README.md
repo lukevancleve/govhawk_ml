@@ -1,7 +1,8 @@
 govhawk_ml
 ==============================
 
-ML NLP on state level legislative text. Currently a __work in progress__. Plan is to be deliverable end of March 2021.
+Machine learning system using NLP on state-level legislative text. Work was done jointly for the startup [Govhawk](https://govhawk.com/) and as a Capstone 
+product for the Machine Learning Engineer trach with [Springboard](https://www.springboard.com/)
 
 ![Architecture](https://github.com/lukevancleve/govhawk_ml/blob/master/reports/figures/network_architecture.jpg)
 
@@ -82,4 +83,16 @@ python scripts/make_ml_data.py
 #### Step 3
 
 Tokenize the clean text data and combine it with the pre-prepared ML dataset. The tokenization of a batch takes a substantive amount of time relative to
-the amount of time a GPU takes to process the batch. Thus, the strategy is to pretokenized and cache the inputs.  
+the amount of time a GPU takes to process the batch. Thus, the strategy is to pretokenized and cache the inputs. 
+
+```
+python scripts/pretokenize.py
+```
+
+#### Step 4
+
+Train the model. Run all the cached observations through BERT and then use the outputs as features for Catboost. Save the model.
+
+```
+python scripts/train_prod_model.py
+```
