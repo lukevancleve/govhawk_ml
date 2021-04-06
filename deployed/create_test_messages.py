@@ -1,5 +1,4 @@
 import boto3
-import time
 
 # Create SQS client
 sqs = boto3.resource('sqs', region_name='us-east-1')
@@ -30,7 +29,7 @@ response = queue.send_message(
         },
         'session_id': {
             'DataType': 'Number',
-            'StringValue': '666'
+            'StringValue': '520'
         },
         'chamber_id': {
             'DataType': 'Number',

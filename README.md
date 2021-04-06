@@ -9,17 +9,11 @@ Project Organization
 ------------
 
 
-    ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
-    ├── data
-    │   ├── clean          <- Cleaned text file
-    │   └── raw            <- The original, raw text files.
     │    │
-    ├── models             <- Trained and serialized models, model predictions, or model summaries
+    ├── models             <- Trained and serialized models, other artifacts
     │
-    ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-    │                         the creator's initials, and a short `-` delimited description, e.g.
-    │                         `1.0-jqp-initial-data-exploration`.
+    ├── notebooks          <- Jupyter notebooks.
     │
     ├── references         <- External data, data derived from external data.
     |   |--- external      <- Reference csv files
@@ -46,12 +40,22 @@ Project Organization
     │   │
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
     │       └── visualize.py
+    |
+    |-- sripts             <- Standalone python scripts that use modules in src
 
 
 Instructions for use:
 ---------
 
 ## Production
+
+The production version of this model is a docker image that listens to an AWS SQS feed. Two artifacts are cached from the training process, `models/encoder_production.pkl` and `models/catboost.production`, these respectively encode which legislative session the bill belongs to and the actual GBDT Catboost
+model. For a real production process one would edit the files in `deployed\` to listen to a production SQS queue instead of the test one and write the output to
+relational tables.
+
+```
+python deployed/test_recieve
+```
 
 
 ## Training

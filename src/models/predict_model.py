@@ -1,12 +1,14 @@
+import pickle
+
+from catboost import CatBoostClassifier
+import pandas as pd
+from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix
+from sklearn.model_selection import train_test_split
+from transformers import BertTokenizer
 
 from src.models.configurationClasses import deepLegisConfig
-from catboost import CatBoostClassifier
-from transformers import BertTokenizer
-from src.models.deeplegis import *
-from src.models.data_loader import *
+#from src.models.data_loader import 
 from src.data.data_downloader import data_downloader
-from sklearn.metrics import auc, roc_curve, roc_auc_score, classification_report, confusion_matrix
-import pandas as pd
 
 
 def make_predictions_from_sqs(df):
@@ -19,15 +21,14 @@ def make_predictions_from_sqs(df):
     """
 
     assert df is not None, "Caller should provide a pd.DataFrame"
-    assert 'plain_url' in df.columns 
-    assert 'session_id' in df.columns 
-    assert 'chamber_id' in df.columns 
-    assert 'version_number' in df.columns 
-    assert 'bill_id' in df.columns 
-    assert 'bill_version_id' in df.columns 
-    assert 'partisan_lean' in df.columns 
+    assert 'plain_url' in df.columns
+    assert 'session_id' in df.columns
+    assert 'chamber_id' in df.columns
+    assert 'version_number' in df.columns
+    assert 'bill_id' in df.columns
+    assert 'bill_version_id' in df.columns
+    assert 'partisan_lean' in df.columns
 
-    
     dd = data_downloader("data")
     # Data wrangle to pass to the model
     df['raw']   = df.plain_url.apply(dd.download_plain)
@@ -51,7 +52,8 @@ def make_predictions_from_sqs(df):
     df['tokens'] = df.text.apply( tokenizer_wrapper)
 
     # Use the same encoder from training.
-    label_encoder = pickle.load( open( "models/encoder_production.pkl", "rb" ) ) 
+    label_encoder = pickle.load( open( "models/encoder_production.pkl", "rb" ) )
+    print(label_encoder.classes_)
     df['sc_id_cat'] = label_encoder.transform(df['sc_id'])
 
     prod_model = DeepLegisCatboost()
@@ -110,13 +112,13 @@ class DeepLegisCatboost():
             plot=False
         )
 
-        
         model.save_model('models/catboost.production')
 
         pred = model.predict_proba(X_test)[:,1]
         truth = Y_test.values
         print(confusion_matrix(truth, pred>0.5))
         print(f"AUROC:{roc_auc_score(truth, pred)}")
+        print(classification_report(truth, pred))
 
 
     def predict_from_df_prod(self, df):
@@ -127,12 +129,12 @@ class DeepLegisCatboost():
         hidden_states = self.create_hidden_states(df)
 
         # Combine the metadata with the transformer output
-        metadata_df = deep_legis_model.df[['sc_id_cat', 'version_number', 'partisan_lean']]
+        metadata_df = df[['sc_id_cat', 'version_number', 'partisan_lean']]
         metadata_df.reset_index(drop=True, inplace=True)
         feature_extractor_df = pd.concat([metadata_df, pd.DataFrame(hidden_states)], axis=1)
 
         # Run the Catboost Classifier.
         catboost_model = CatBoostClassifier()
-        catboost_model.load_model('models/catboost_production')
+        catboost_model.load_model('models/catboost.production')
         preds_cat = catboost_model.predict_proba(feature_extractor_df)[:,1]
         return preds_cat

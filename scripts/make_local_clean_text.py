@@ -8,10 +8,10 @@ import pandas as pd
 from src.data.data_downloader import data_downloader
 
 def main(vol_path):
-    """ 
+    """
     Download and clean all of the associated text files from S3 used in the training of this model. The files
     need to be stored locally as downloading them as a stream when training would be a prohibitive bottleneck.
-    The files will later be tokenized and stored in a pickled dataset for easy reuse. These files are 
+    The files will later be tokenized and stored in a pickled dataset for easy reuse. These files are
     around 10 GB and should not be in a docker image (as specified by the .dockerignore file).
     """
     logger = logging.getLogger(__name__)

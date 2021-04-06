@@ -104,7 +104,7 @@ class legislationDataset(ABC):
         pass
 
     def create_batch_stream(self, df):
-        
+
         print(df.head())
 
         if self.config.only_full:
@@ -144,7 +144,6 @@ class legislationDataset(ABC):
         if self.testing:
             for elem in train_data1.take(1):
                 print(elem)
-    
 
         train_data = (train_data1.map(self.to_feature_map, \
               num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -182,19 +181,20 @@ class legislationDatasetPartisanLean(legislationDataset):
                 tf.cast(partisan_lean, 'float32'))
 
     def to_feature_map(self, tokens, label, partisan_lean):
+
         input_ids, label_id, partisan_lean  \
            = tf.py_function(self.to_feature, [tokens, label, partisan_lean], \
                 Tout = [tf.int32, tf.int32, tf.float32])
-    
+
         input_ids.set_shape([self.config.max_length])
         label_id.set_shape([])
         partisan_lean.set_shape([])
-    
+
         x = {
             'input_ids': input_ids,
             'partisan_lean': partisan_lean
         }
-    
+
         return (x, label_id)
 
     def select_vars(self, df):
